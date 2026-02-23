@@ -1,0 +1,9 @@
+#!/bin/bash
+
+trtllm-serve serve \
+ --tokenizer /root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/ \
+ --backend trt \
+ --log_level info \
+ --max_batch_size 32 \
+ --max_num_tokens 8192 \
+ ../trt_engines/qwen2/W4A16
