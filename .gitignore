@@ -1,2 +1,2 @@
-trt_engines/**
-!trt_engines/.gitkeep
+model/trt_engines/**
+!model/trt_engines/.gitkeep
