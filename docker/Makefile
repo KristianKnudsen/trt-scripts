@@ -68,4 +68,3 @@ run-shell-detached-hosted:
                 -v $(NOTEBOOKS_DIR):/notebooks \
                 $(IMAGE_NAME):$(IMAGE_TAG) \
                 bash
-                bash
