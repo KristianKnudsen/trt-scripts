@@ -14,6 +14,8 @@ from tensorrt_llm.models.modeling_utils import QuantConfig
 from datasets import load_dataset
 import os
 
+SUPPORTED_QUANTS = { 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
+
 def convert_and_quantize(args, rank, world_size):
     """
     Handles both Simple Conversion (W4A16) and Calibration (AWQ/FP8/SQ)
@@ -21,20 +23,25 @@ def convert_and_quantize(args, rank, world_size):
     # 1. Select Model Class
     if "mistral" in args.model_type.lower() or "llama" in args.model_type.lower():
         ModelClass = LLaMAForCausalLM
-    else:
+    elif "qwen" in args.model_type.lower():
         ModelClass = QWenForCausalLM
+    else:
+        raise Exception("Model not supported")
 
     # 2. Configure Quantization
     quant_config = QuantConfig()
+    quant_config.quant_algo = QuantAlgo.NO_QUANT
     needs_calib = False
     
     mode = args.quant_mode.upper()
     
+    if mode not in SUPPORTED_QUANTS:
+        raise Exception("Quant not supported")
+
     if mode == "W4A16":
         quant_config.quant_algo = QuantAlgo.W4A16
     elif mode == "W8A16":
         quant_config.quant_algo = QuantAlgo.W8A16
-    
     # Calibration Required Modes
     elif mode == "W4A16_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A16_AWQ
@@ -42,14 +49,16 @@ def convert_and_quantize(args, rank, world_size):
     elif mode == "W4A8_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A8_AWQ
         needs_calib = True
+    # Hopper+
     elif mode == "FP8":
         quant_config.quant_algo = QuantAlgo.FP8
         needs_calib = True
     elif mode == "W8A8_SQ":
-        quant_config.quant_algo = QuantAlgo.W8A8_SQ_PER_CHANNEL
+        quant_config.quant_algo = QuantAlgo.W8A8_SQ_PER_CHANNEL_PER_TOKEN_PLUGIN
         needs_calib = True
     
     # KV Cache Config
+    # Hopper+
     if args.kv_cache_dtype == "fp8":
         quant_config.kv_cache_quant_algo = QuantAlgo.FP8
     elif args.kv_cache_dtype == "int8":
@@ -116,7 +125,7 @@ def main():
     parser.add_argument("--dtype", type=str, default="float16")
     
     parser.add_argument("--quant_mode", type=str, default="W4A16", 
-                        help="Options: W4A16, W4A16_AWQ, FP8, W8A8_SQ")
+                        help="Options: W4A16, W4A16_AWQ, FP8, W8A8_SQ, NO_QUANT, NONE")
     parser.add_argument("--kv_cache_dtype", type=str, default=None, choices=[None, "int8", "fp8", "fp16", "bf16"]) # None, an bf16 redirect to fp16
 
     parser.add_argument("--max_batch_size", type=int, default=32)
@@ -150,9 +159,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    """
-    
-    mpirun --allow-run-as-root -n 1 python build_engine.py --model_type qwen --model_dir "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/" --output_dir "./trt_engines/qwen2/python-test-2" --quant_mode W4A16_AWQ --max_batch_size 32 --max_seq_len 6144
-    
-    """
