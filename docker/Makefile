@@ -1,6 +1,7 @@
 IMAGE_NAME=my-trtllm
 IMAGE_TAG=1.1.0rc5
 CONTAINER_NAME=trtllm_dev
+# TODO: Notebooks are outdated and unused.
 NOTEBOOKS_DIR=~/Desktop/NTNU/prosjekt/notebooks
 
 build:
