@@ -1,0 +1,20 @@
+mpirun --allow-run-as-root -n 1 python build_engine.py \
+    --model_type "qwen" \
+    --model_dir "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/" \
+    --output_dir "./trt_engines/qwen2/W8A8_SQ" \
+    --quant_mode "W8A8_SQ" \
+    --kv_cache_dtype "None" \
+    --max_batch_size 32 \
+    --max_input_len 2048 \
+    --max_seq_len 6144 \
+    --max_num_tokens 12288 \
+    --max_beam_width 1 \
+    --calib_source "neuralmagic/LLM_compression_calibration" \
+    --calib_split "train" \
+    --calib_text_field "text" \
+    --calib_num_samples 2048 \
+    --calib_seed 0 \
+    --calib_batch_size 16 \
+    --calib_max_seq_length 6144 \
+    --calib_batches 64 \
+    --tokenizer_max_seq_length 12288
