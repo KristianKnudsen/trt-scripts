@@ -8,8 +8,8 @@ The container image was built from the existing Docker-based setup using an Appt
 
 ```bash
 cd /localscratch
-apptainer build --fakeroot trtllm-tools.sif /cluster/home/krisskn/docker/trtllm-tools.def
-mv trtllm-tools.sif /cluster/home/krisskn/
+apptainer build --fakeroot trtllm-tools.sif ~/trt-scripts/docker/trtllm-tools.def
+mv trtllm-tools.sif ~/
 ```
 
 ### Result
@@ -17,7 +17,7 @@ mv trtllm-tools.sif /cluster/home/krisskn/
 Persistent container image:
 
 ```
-/cluster/home/krisskn/trtllm-tools.sif
+~/trtllm-tools.sif
 ```
 
 ### Notes
