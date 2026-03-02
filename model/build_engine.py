@@ -14,6 +14,8 @@ from tensorrt_llm.models.modeling_utils import QuantConfig
 from datasets import load_dataset
 import os
 
+# TODO: Split Engine Builder and Checkpont builder? Check examples. https://github.com/NVIDIA/TensorRT-LLM/blob/main/examples/models/core/qwen/convert_checkpoint.py
+
 SUPPORTED_QUANTS = { 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
 
 def convert_and_quantize(args, rank, world_size):
@@ -59,6 +61,7 @@ def convert_and_quantize(args, rank, world_size):
     
     # KV Cache Config
     # Hopper+
+    # TODO: add exception for unsupported variables.
     if args.kv_cache_dtype == "fp8":
         quant_config.kv_cache_quant_algo = QuantAlgo.FP8
     elif args.kv_cache_dtype == "int8":
@@ -103,13 +106,15 @@ def convert_and_quantize(args, rank, world_size):
             mapping=mapping
         )
 
-def build_engine(model, args, rank):
+# TODO: add logit toggle to CLI
+def build_engine(model, args, rank, logits=True):
     build_config = BuildConfig()
     build_config.max_input_len = args.max_input_len
     build_config.max_seq_len = args.max_seq_len
     build_config.max_batch_size = args.max_batch_size
     build_config.max_num_tokens = args.max_num_tokens
     build_config.max_beam_width = args.max_beam_width
+    build_config.gather_context_logits = logits
 
     if rank == 0:
         print(f"[Rank {rank}] Building Engine...")
@@ -134,6 +139,7 @@ def main():
     parser.add_argument("--max_num_tokens", type=int, default=6144*2)
     parser.add_argument("--max_beam_width", type=int, default=1) # cd 
 
+    # TODO: The source code overwrites some of these parameters.
     parser.add_argument("--calib_source", type=str, default='neuralmagic/LLM_compression_calibration',
                     help="Either an HF dataset name like 'allenai/c4' or a path to a .jsonl file.")
     parser.add_argument("--calib_split", type=str, default="train")
