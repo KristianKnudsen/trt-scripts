@@ -1,10 +1,14 @@
 from tensorrt_llm.evaluate.lm_eval import LmEvalWrapper
-
+import csv
+import os
 import copy
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from tensorrt_llm.sampling_params import SamplingParams
+from dataclasses import dataclass
+from typing import Optional
+from pathlib import Path
 
 # Context logprobs, teacher forces...
 # TODO: fix memory leakage
@@ -76,10 +80,29 @@ LmEvalWrapper.loglikelihood_rolling = loglikelihood_rolling
 from tensorrt_llm.evaluate.lm_eval import *
 from tensorrt_llm.llmapi.llm_args import KvCacheConfig
 
+@dataclass
+class EvalConfig:
+    num_samples: Optional[int] = 1
+    task: str = "mmlu"
+    few_shots: int = 5
+    free_gpu_memory_fraction: float = 0.5
+    max_batch_size: int = 1
+    max_tokens:int = 1,
+    temperature:float = 0.0,
+    return_context_logits: bool = True,
+    seed: int = 0
+
+    # Unannotated for printing
+    model_dir = Path("/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b")
+    engine_dir = Path("/workspace/code/trt_engines/qwen2/W16A16_LOGITS")
+
 def main():
+
+    e_config = EvalConfig()
+
     eval = LmEvalEvaluator(
-        task_name="mmlu",
-        #num_samples=1
+        task_name=e_config.task,
+        num_samples=e_config.num_samples
     )
 
     stack = list(eval.task_dict.values())
@@ -89,30 +112,46 @@ def main():
         if isinstance(obj, dict):
             stack.extend(obj.values())
         else:
-            obj.set_config(key="num_fewshot", value=5)
-            obj.set_fewshot_seed(seed=0)
-
-    model_dir = "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b"
-    engine_dir = "/workspace/code/trt_engines/qwen2/W16A16_LOGITS"
+            obj.set_config(key="num_fewshot", value=e_config.few_shots)
+            obj.set_fewshot_seed(seed=e_config.seed)
 
     llm = LLM(
-        model=engine_dir,
-        tokenizer=model_dir,
+        model=e_config.engine_dir,
+        tokenizer=e_config.model_dir,
         kv_cache_config=KvCacheConfig(
-            free_gpu_memory_fraction=0.5,
+            free_gpu_memory_fraction=e_config.free_gpu_memory_fraction,
         ),
-        max_batch_size=1,
+        max_batch_size=e_config.max_batch_size,
     )
 
     sampling_params = SamplingParams(
-        max_tokens=1,
-        temperature=0.0,
-        return_context_logits=True
+        max_tokens=e_config.max_tokens,
+        temperature=e_config.temperature,
+        return_context_logits=e_config.return_context_logits,
+        seed=e_config.seed
     )
 
     result = eval.evaluate(llm, sampling_params)
 
-    print(result)
+    append_result_csv(e_config, str(result))
+
+    print(f"Measured accuracy: {result}")
+
+
+def append_result_csv(e_config: EvalConfig, result: str, csv_path="results.csv"):
+
+    file_exists = os.path.exists(csv_path)
+
+    with open(csv_path, "a", newline="") as f:
+        writer = csv.writer(f)
+
+        if not file_exists:
+            writer.writerow(["model", "task", "result", "config params"])
+
+        writer.writerow([e_config.engine_dir.name, 
+                         e_config.task, 
+                         result,
+                         str(e_config)])
 
 
 if __name__ == "__main__":
