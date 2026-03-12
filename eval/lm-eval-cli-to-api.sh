@@ -1,12 +1,11 @@
 lm-eval \
     --model local-completions \
-    --tasks gsm8k \
+    --tasks mmlu_pro \
     --num_fewshot 5 \
     --batch_size 32 \
-    --limit 256 \
     --model_args \
 "base_url=http://localhost:8000/v1/completions,"\
-"model=W4A16,"\
+"model=W16A16,"\
 "tokenizer=/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b,"\
 "tokenized_requests=True,"\
 "max_length=6144,"\
