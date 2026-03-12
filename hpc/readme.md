@@ -1,12 +1,12 @@
 ## HPC Container Build (Apptainer)
 
-The container image was built from the existing Docker-based setup using an Apptainer definition file (`trtllm-tools.def`) to produce a persistent `.sif` image for the HPC environment.
+The container image was built using an Apptainer definition file (`trtllm-tools.def`) to produce a persistent `.sif` image for the HPC environment.
 
 ### Build Steps
 
 ```bash
 cd /localscratch
-apptainer build --fakeroot trtllm-tools.sif ~/trt-scripts/docker/trtllm-tools.def
+apptainer build --fakeroot trtllm-tools.sif ~/trt-scripts/hpc/trtllm-tools.def
 mv trtllm-tools.sif ~/
 ```
 
