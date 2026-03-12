@@ -1,2 +1,0 @@
-When building engine with logits enabled, the memory usage increases. Reduce match size if you get out of memory error.
-Enabling Context logits seems to significantly alter the engine's memory footprint. Keep in mind when benchmarking.
