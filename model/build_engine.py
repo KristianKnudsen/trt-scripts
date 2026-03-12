@@ -15,14 +15,15 @@ from datasets import load_dataset
 import os
 
 # TODO: Split Engine Builder and Checkpont builder? Check examples. https://github.com/NVIDIA/TensorRT-LLM/blob/main/examples/models/core/qwen/convert_checkpoint.py
+# The engine is hardware agnostic, the checkpoints are not. To get comparable results from HPC and Desktop use the same checkpoint, but build new engines.
+
 
 SUPPORTED_QUANTS = { 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
 
 def convert_and_quantize(args, rank, world_size):
     """
-    Handles both Simple Conversion (W4A16) and Calibration (AWQ/FP8/SQ)
+    No multi gpu support
     """
-    # 1. Select Model Class
     if "mistral" in args.model_type.lower() or "llama" in args.model_type.lower():
         ModelClass = LLaMAForCausalLM
     elif "qwen" in args.model_type.lower():
@@ -30,7 +31,6 @@ def convert_and_quantize(args, rank, world_size):
     else:
         raise Exception("Model not supported")
 
-    # 2. Configure Quantization
     quant_config = QuantConfig()
     quant_config.quant_algo = QuantAlgo.NO_QUANT
     needs_calib = False
@@ -51,12 +51,12 @@ def convert_and_quantize(args, rank, world_size):
     elif mode == "W4A8_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A8_AWQ
         needs_calib = True
+    elif mode == "W8A8_SQ":
+        quant_config.quant_algo = QuantAlgo.W8A8_SQ_PER_CHANNEL_PER_TOKEN_PLUGIN
+        needs_calib = True
     # Hopper+
     elif mode == "FP8":
         quant_config.quant_algo = QuantAlgo.FP8
-        needs_calib = True
-    elif mode == "W8A8_SQ":
-        quant_config.quant_algo = QuantAlgo.W8A8_SQ_PER_CHANNEL_PER_TOKEN_PLUGIN
         needs_calib = True
     
     # KV Cache Config
@@ -64,10 +64,10 @@ def convert_and_quantize(args, rank, world_size):
     # TODO: add exception for unsupported variables.
     if args.kv_cache_dtype == "fp8":
         quant_config.kv_cache_quant_algo = QuantAlgo.FP8
+    # TODO: check compatibilities
     elif args.kv_cache_dtype == "int8":
         quant_config.kv_cache_quant_algo = QuantAlgo.INT8
 
-    # 3. Execution
     mapping = Mapping(world_size=world_size, rank=rank, tp_size=world_size)
     
     # Path A: CALIBRATION (AWQ, FP8, SQ), saves to disk
@@ -75,7 +75,7 @@ def convert_and_quantize(args, rank, world_size):
         checkpoint_dir = os.path.join(args.output_dir, "quantized_checkpoint")
         
         if rank == 0:
-            print(f"[Rank 0] Starting {mode} calibration (this takes time)...")
+            print(f"[Rank 0] Starting {mode} calibration...")
             
             ModelClass.quantize(
                 args.model_dir,
@@ -107,6 +107,7 @@ def convert_and_quantize(args, rank, world_size):
         )
 
 # TODO: add logit toggle to CLI
+# TODO: Check rank functionalities
 def build_engine(model, args, rank, logits=True):
     build_config = BuildConfig()
     build_config.max_input_len = args.max_input_len
@@ -116,8 +117,7 @@ def build_engine(model, args, rank, logits=True):
     build_config.max_beam_width = args.max_beam_width
     build_config.gather_context_logits = logits
 
-    if rank == 0:
-        print(f"[Rank {rank}] Building Engine...")
+    print(f"[Rank {rank}] Building Engine...")
         
     engine = build(model, build_config)
     engine.save(args.output_dir)
@@ -139,9 +139,13 @@ def main():
     parser.add_argument("--max_num_tokens", type=int, default=6144*2)
     parser.add_argument("--max_beam_width", type=int, default=1) # cd 
 
-    # TODO: The source code overwrites some of these parameters.
-    parser.add_argument("--calib_source", type=str, default='neuralmagic/LLM_compression_calibration',
-                    help="Either an HF dataset name like 'allenai/c4' or a path to a .jsonl file.")
+    """
+    TODO: The source code overwrites some of these parameters.
+     More specifically 'from tensorrt_llm.quantization.quantize_by_modelopt import get_calib_dataloader'
+     Doesn't take in custom datasets, and forces train from others
+    """
+    
+    parser.add_argument("--calib_source", type=str, default='neuralmagic/LLM_compression_calibration')
     parser.add_argument("--calib_split", type=str, default="train")
     parser.add_argument("--calib_text_field", type=str, default="text")
     parser.add_argument("--calib_num_samples", type=int, default=2048)
@@ -165,3 +169,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    """
+    Example run:
+    mpirun --allow-run-as-root -n 1 python build_engine.py --model_type qwen --model_dir "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/" --output_dir "./trt_engines/qwen2/python-test-2" --quant_mode W4A16_AWQ --max_batch_size 32 --max_seq_len 6144
+    """
