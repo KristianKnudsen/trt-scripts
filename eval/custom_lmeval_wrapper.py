@@ -1,18 +1,22 @@
 from tensorrt_llm.evaluate.lm_eval import LmEvalWrapper
+import argparse
 import csv
-import os
 import copy
+import json
+import os
 import torch
-import torch.nn.functional as F
 from tqdm import tqdm
-from tensorrt_llm.sampling_params import SamplingParams
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Optional
 from pathlib import Path
+from tensorrt_llm.sampling_params import SamplingParams
 
-# Context logprobs, teacher forces...
-# TODO: fix memory leakage
+
 def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **kwargs):
+    """
+    Full MMLU task will crash. Divide the tasks as much as possible for stable evaluation. Making big requests with gather logits enabled
+    seems to have some kind of memory accumulation in the eninge.
+    """
     profiler.start("trtllm exec")
     results = []
 
@@ -21,46 +25,35 @@ def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **k
     sp.temperature = 0.0
     sp.return_context_logits = True
 
-    with torch.no_grad():
-        for request in tqdm(requests, desc="Submitting requests", disable=disable_tqdm):
-            _, prompt_tokens, target_tokens = request
+    for request in tqdm(requests, desc="Submitting requests", disable=disable_tqdm):
+        _, prompt_tokens, target_tokens = request
 
-            prompt_tokens = list(prompt_tokens)
-            target_tokens = list(target_tokens)
+        prompt_tokens = list(prompt_tokens)
+        target_tokens = list(target_tokens)
 
-            if not target_tokens:
-                results.append((0.0, True))
-                continue
+        inp = prompt_tokens + target_tokens[:-1]
 
-            inp = prompt_tokens + target_tokens[:-1]
+        gen_output = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
+        output = gen_output.result()
 
-            gen_output = self.llm.generate(inp, sampling_params=sp)
-            output = gen_output.result()
+        start = len(prompt_tokens) - 1
+        end = start + len(target_tokens)
+        logits = output.context_logits[start:end].clone()
+        del gen_output, output
 
-            logits = output.context_logits
+        logprob_sum = 0.0
+        is_greedy = True
 
-            start = len(prompt_tokens) - 1
-            end = start + len(target_tokens)
-            logits = logits[start:end]
+        for i, tok in enumerate(target_tokens):
+            token_logits = logits[i]
 
-            logprob_sum = 0.0
-            is_greedy = True
+            row = token_logits.float()
+            logprob_sum += float(row[tok] - torch.logsumexp(row, dim=-1))
 
-            for i, tok in enumerate(target_tokens):
-                token_logits = logits[i]
+            if tok != int(token_logits.argmax()):
+                is_greedy = False
 
-                row = token_logits.float()
-                logprob_sum += float(row[tok] - torch.logsumexp(row, dim=-1))
-
-                if tok != int(token_logits.argmax()):
-                    is_greedy = False
-
-            results.append((logprob_sum, is_greedy))
-
-            # Memory issues...
-            del logits
-            del output
-            del gen_output
+        results.append((logprob_sum, is_greedy))
 
     profiler.stop("trtllm exec")
     elapsed_time = profiler.elapsed_time_in_sec("trtllm exec")
@@ -82,23 +75,52 @@ from tensorrt_llm.llmapi.llm_args import KvCacheConfig
 
 @dataclass
 class EvalConfig:
-    num_samples: Optional[int] = 1
-    task: str = "mmlu"
-    few_shots: int = 5
-    free_gpu_memory_fraction: float = 0.5
+    # Engine config
+    free_gpu_memory_fraction: float = 0.8
     max_batch_size: int = 1
     max_tokens:int = 1,
+
+    # Sampling Params
     temperature:float = 0.0,
     return_context_logits: bool = True,
     seed: int = 0
+
+    # LM eval params
+    num_samples: Optional[int] = 100
+    task: str = "hellaswag"
+    few_shots: int = 5
+    scores_filter: Optional[str] = "acc_norm,none"
 
     # Unannotated for printing
     model_dir = Path("/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b")
     engine_dir = Path("/workspace/code/trt_engines/qwen2/W16A16_LOGITS")
 
-def main():
+def load_config(config_path: str) -> EvalConfig:
+    with open(config_path) as f:
+        data = json.load(f)
 
-    e_config = EvalConfig()
+    field_names = {f.name for f in fields(EvalConfig)}
+    unknown = set(data) - field_names - {"model_dir", "engine_dir"}
+    if unknown:
+        raise ValueError(f"Unknown config keys: {unknown}")
+
+    kwargs = {k: v for k, v in data.items() if k in field_names}
+    cfg = EvalConfig(**kwargs)
+
+    if "model_dir" in data:
+        cfg.model_dir = Path(data["model_dir"])
+    if "engine_dir" in data:
+        cfg.engine_dir = Path(data["engine_dir"])
+
+    return cfg
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="Path to JSON config file")
+    args = parser.parse_args()
+
+    e_config = load_config(args.config)
 
     eval = LmEvalEvaluator(
         task_name=e_config.task,
@@ -131,7 +153,7 @@ def main():
         seed=e_config.seed
     )
 
-    result = eval.evaluate(llm, sampling_params)
+    result = eval.evaluate(llm, sampling_params, scores_filter=e_config.scores_filter)
 
     append_result_csv(e_config, str(result))
 
@@ -139,7 +161,6 @@ def main():
 
 
 def append_result_csv(e_config: EvalConfig, result: str, csv_path="results.csv"):
-
     file_exists = os.path.exists(csv_path)
 
     with open(csv_path, "a", newline="") as f:
@@ -152,7 +173,6 @@ def append_result_csv(e_config: EvalConfig, result: str, csv_path="results.csv")
                          e_config.task, 
                          result,
                          str(e_config)])
-
 
 if __name__ == "__main__":
     main()
