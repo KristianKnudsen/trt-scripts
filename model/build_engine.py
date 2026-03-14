@@ -18,7 +18,7 @@ import os
 # The engine is hardware agnostic, the checkpoints are not. To get comparable results from HPC and Desktop use the same checkpoint, but build new engines.
 
 
-SUPPORTED_QUANTS = { 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
+SUPPORTED_QUANTS = { "W8A16", 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
 
 def convert_and_quantize(args, rank, world_size):
     """
@@ -29,7 +29,7 @@ def convert_and_quantize(args, rank, world_size):
     elif "qwen" in args.model_type.lower():
         ModelClass = QWenForCausalLM
     else:
-        raise Exception("Model not supported")
+        raise Exception(f"Model {args.model_type} not supported")
 
     quant_config = QuantConfig()
     quant_config.quant_algo = QuantAlgo.NO_QUANT
@@ -38,7 +38,7 @@ def convert_and_quantize(args, rank, world_size):
     mode = args.quant_mode.upper()
     
     if mode not in SUPPORTED_QUANTS:
-        raise Exception("Quant not supported")
+        raise Exception(f"Quant {mode} not supported")
 
     if mode == "W4A16":
         quant_config.quant_algo = QuantAlgo.W4A16
