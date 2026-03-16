@@ -1,4 +1,5 @@
 import argparse
+from functools import partial
 from math import ceil
 import os
 from pathlib import Path
@@ -10,15 +11,54 @@ from tensorrt_llm.builder import BuildConfig, build
 
 from tensorrt_llm.quantization import QuantAlgo
 from tensorrt_llm.models.modeling_utils import QuantConfig
-    
+import tensorrt_llm.quantization.quantize_by_modelopt as _modelopt_mod
+
 from datasets import load_dataset
 import os
+
+
+def _get_calib_dataloader(dataset_name_or_dir="cnn_dailymail",
+                          tokenizer=None,
+                          batch_size=1,
+                          calib_size=512,
+                          block_size=512,
+                          device=None,
+                          include_labels=False,
+                          split="train",
+                          text_field="text"):
+    from tensorrt_llm.quantization.quantize_by_modelopt import MULTIMODAL_DATASETS, _CustomDataset, DataLoader
+    import torch
+
+    if any(name in dataset_name_or_dir for name in MULTIMODAL_DATASETS):
+        raise NotImplementedError(f"Multimodal calibration datasets are not supported: {dataset_name_or_dir}")
+
+    dataset = load_dataset(dataset_name_or_dir, split=split, trust_remote_code=True)
+    dataset = dataset[text_field][:calib_size]
+
+    batch_encoded = tokenizer.batch_encode_plus(dataset, return_tensors="pt",
+                                                padding=True, truncation=True,
+                                                max_length=block_size)
+    if device:
+        batch_encoded = batch_encoded.to(device)
+
+    if include_labels:
+        batch_encoded["labels"] = torch.where(
+            batch_encoded["attention_mask"] > 0.5,
+            batch_encoded["input_ids"], -100)
+        batch_encoded = _CustomDataset(batch_encoded)
+    else:
+        batch_encoded = _CustomDataset({"input_ids": batch_encoded["input_ids"]})
+
+    return DataLoader(batch_encoded, batch_size=batch_size, shuffle=False)
+
+
+_modelopt_mod.get_calib_dataloader = _get_calib_dataloader
 
 # TODO: Split Engine Builder and Checkpont builder? Check examples. https://github.com/NVIDIA/TensorRT-LLM/blob/main/examples/models/core/qwen/convert_checkpoint.py
 # The engine is hardware agnostic, the checkpoints are not. To get comparable results from HPC and Desktop use the same checkpoint, but build new engines.
 
 
-SUPPORTED_QUANTS = { "W8A16", 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' }
+SUPPORTED_QUANTS = { "W8A16", 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' , "W16A16"}
 
 def convert_and_quantize(args, rank, world_size):
     """
@@ -42,6 +82,9 @@ def convert_and_quantize(args, rank, world_size):
 
     if mode == "W4A16":
         quant_config.quant_algo = QuantAlgo.W4A16
+    # Does not consider 32 bit models
+    elif mode in ("NO_QUANT", "NONE", "W16A16"):
+        quant_config.quant_algo = QuantAlgo.NO_QUANT
     elif mode == "W8A16":
         quant_config.quant_algo = QuantAlgo.W8A16
     # Calibration Required Modes
@@ -76,7 +119,13 @@ def convert_and_quantize(args, rank, world_size):
         
         if rank == 0:
             print(f"[Rank 0] Starting {mode} calibration...")
-            
+
+            _modelopt_mod.get_calib_dataloader = partial(
+                _get_calib_dataloader,
+                split=args.calib_split,
+                text_field=args.calib_text_field,
+            )
+
             ModelClass.quantize(
                 args.model_dir,
                 checkpoint_dir,
