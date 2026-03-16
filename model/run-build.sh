@@ -1,7 +1,8 @@
 mpirun --allow-run-as-root -n 1 python build_engine.py \
     --model_type "qwen" \
     --model_dir "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/" \
-    --output_dir "./trt_engines/qwen2/W8A8_SQ" \
+    --engine_out_dir "./trt_engines/qwen2/W8A8_SQ" \
+    # --checkpoint_out_dir "./checkpoints/qwen2/W8A8_SQ" \
     --dtype "float16" \
     --quant_mode "W8A8_SQ" \
     --kv_cache_dtype "None" \

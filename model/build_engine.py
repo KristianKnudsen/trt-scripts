@@ -3,6 +3,7 @@ from functools import partial
 from math import ceil
 import os
 from pathlib import Path
+import shutil
 from mpi4py import MPI
 
 from tensorrt_llm.models import QWenForCausalLM, LLaMAForCausalLM
@@ -115,8 +116,8 @@ def convert_and_quantize(args, rank, world_size):
     
     # Path A: CALIBRATION (AWQ, FP8, SQ), saves to disk
     if needs_calib:
-        checkpoint_dir = os.path.join(args.output_dir, "quantized_checkpoint")
-        
+        checkpoint_dir = args.checkpoint_out_dir if args.checkpoint_out_dir else os.path.join(args.engine_out_dir, "quantized_checkpoint")
+
         if rank == 0:
             print(f"[Rank 0] Starting {mode} calibration...")
 
@@ -140,22 +141,33 @@ def convert_and_quantize(args, rank, world_size):
             )
 
             print(f"[Rank 0] Calibration complete. Checkpoint saved to {checkpoint_dir}")
-            
+
         MPI.COMM_WORLD.Barrier()
-        
-        return ModelClass.from_checkpoint(checkpoint_dir)
+
+        model = ModelClass.from_checkpoint(checkpoint_dir)
+
+        if not args.checkpoint_out_dir and rank == 0:
+            shutil.rmtree(checkpoint_dir)
+
+        return model
 
     # Path B: DIRECT LOADING (Weight Only)
     else:
         if rank == 0:
             print(f"[Rank {rank}] Loading directly from HF (Weight-Only)...")
-            
-        return ModelClass.from_hugging_face(
+
+        model = ModelClass.from_hugging_face(
             args.model_dir,
             dtype=args.dtype,
             quant_config=quant_config,
             mapping=mapping
         )
+
+        if args.checkpoint_out_dir and rank == 0:
+            model.save_checkpoint(args.checkpoint_out_dir)
+            print(f"[Rank 0] Checkpoint saved to {args.checkpoint_out_dir}")
+
+        return model
 
 # TODO: Check rank functionalities
 def build_engine(model, args, rank):
@@ -170,12 +182,13 @@ def build_engine(model, args, rank):
     print(f"[Rank {rank}] Building Engine...")
         
     engine = build(model, build_config)
-    engine.save(args.output_dir)
+    engine.save(args.engine_out_dir)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, required=True)
-    parser.add_argument("--output_dir", type=str, required=True)
+    parser.add_argument("--engine_out_dir", type=str, default=None)
+    parser.add_argument("--checkpoint_out_dir", type=str, default=None)
     parser.add_argument("--model_type", type=str, default="qwen", choices=["mistral", "qwen", "llama"])
     parser.add_argument("--dtype", type=str, default="float16")
     
@@ -215,9 +228,13 @@ def main():
     world_size = comm.Get_size()
 
     model = convert_and_quantize(args, rank, world_size)
-    
-    build_engine(model, args, rank)
-    print("Engine builiding finished, saved to:", args.output_dir)
+    print(f"[Rank {rank}] Convert and quantize complete.")
+
+    if args.engine_out_dir:
+        build_engine(model, args, rank)
+        print(f"[Rank {rank}] Engine building finished, saved to:", args.engine_out_dir)
+
+    print(f"[Rank {rank}] Done.")
 
 if __name__ == "__main__":
     main()
