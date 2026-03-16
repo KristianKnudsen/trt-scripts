@@ -17,6 +17,4 @@ mpirun --allow-run-as-root -n 1 python build_engine.py \
     --calib_num_samples 2048 \
     --random_seed 0 \
     --calib_batch_size 16 \
-    --calib_max_seq_length 6144 \
-    --calib_batches 64 \
-    --tokenizer_max_seq_length 12288
+    --calib_max_seq_length 6144

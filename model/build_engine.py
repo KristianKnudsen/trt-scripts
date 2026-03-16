@@ -134,8 +134,8 @@ def convert_and_quantize(args, rank, world_size):
                 calib_dataset=args.calib_source,
                 calib_batch_size=args.calib_batch_size,
                 calib_max_seq_length=args.calib_max_seq_length,
-                calib_batches=args.calib_batches,
-                tokenizer_max_seq_length=args.tokenizer_max_seq_length,
+                calib_batches=ceil(args.calib_num_samples / args.calib_batch_size),
+                tokenizer_max_seq_length=args.calib_max_seq_length * 2,
                 random_seed=args.random_seed,
             )
 
@@ -207,8 +207,6 @@ def main():
 
     parser.add_argument("--calib_batch_size", type=int, default=16)
     parser.add_argument("--calib_max_seq_length", type=int, default=6144)
-    parser.add_argument("--calib_batches", type=int, default=ceil(2048 / 32))
-    parser.add_argument("--tokenizer_max_seq_length", type=int, default=6144*2)
 
     args = parser.parse_args()
 
