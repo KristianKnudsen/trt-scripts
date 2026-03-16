@@ -25,35 +25,48 @@ def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **k
     sp.temperature = 0.0
     sp.return_context_logits = True
 
-    for request in tqdm(requests, desc="Submitting requests", disable=disable_tqdm):
+    def _build_input(request):
         _, prompt_tokens, target_tokens = request
-
         prompt_tokens = list(prompt_tokens)
         target_tokens = list(target_tokens)
-
         inp = prompt_tokens + target_tokens[:-1]
+        return inp, prompt_tokens, target_tokens
 
-        gen_output = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
+    def _process(gen_output, prompt_tokens, target_tokens):
         output = gen_output.result()
-
         start = len(prompt_tokens) - 1
         end = start + len(target_tokens)
         logits = output.context_logits[start:end].clone()
         del gen_output, output
 
-        logprob_sum = 0.0
-        is_greedy = True
+        logits_f = logits.float()
+        target = torch.tensor(target_tokens, device=logits_f.device)
+        token_lp = logits_f[torch.arange(len(target_tokens)), target]
+        logprob_sum = float((token_lp - torch.logsumexp(logits_f, dim=-1)).sum())
+        is_greedy = bool((logits_f.argmax(dim=-1) == target).all())
+        return logprob_sum, is_greedy
 
-        for i, tok in enumerate(target_tokens):
-            token_logits = logits[i]
+    req_iter = iter(tqdm(requests, desc="Submitting requests", disable=disable_tqdm))
 
-            row = token_logits.float()
-            logprob_sum += float(row[tok] - torch.logsumexp(row, dim=-1))
+    # Prime the pipeline with the first request
+    try:
+        first = next(req_iter)
+    except StopIteration:
+        return results
 
-            if tok != int(token_logits.argmax()):
-                is_greedy = False
+    inp, prev_pt, prev_tt = _build_input(first)
+    prev_future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
 
-        results.append((logprob_sum, is_greedy))
+    for request in req_iter:
+        # Submit next request before blocking on the previous one
+        inp, pt, tt = _build_input(request)
+        next_future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
+
+        results.append(_process(prev_future, prev_pt, prev_tt))
+        prev_future, prev_pt, prev_tt = next_future, pt, tt
+
+    # Drain the last pending request
+    results.append(_process(prev_future, prev_pt, prev_tt))
 
     profiler.stop("trtllm exec")
     elapsed_time = profiler.elapsed_time_in_sec("trtllm exec")
