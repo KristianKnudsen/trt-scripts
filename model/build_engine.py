@@ -30,7 +30,7 @@ def _get_calib_dataloader(dataset_name_or_dir="cnn_dailymail",
     import torch
 
     if any(name in dataset_name_or_dir for name in MULTIMODAL_DATASETS):
-        raise NotImplementedError(f"Multimodal calibration datasets are not supported: {dataset_name_or_dir}")
+        raise NotImplementedError(f"Multimodal calibration datasets are not supported yet: {dataset_name_or_dir}")
 
     dataset = load_dataset(dataset_name_or_dir, split=split, trust_remote_code=True)
     dataset = dataset[text_field][:calib_size]
@@ -124,6 +124,7 @@ def convert_and_quantize(args, rank, world_size):
                 _get_calib_dataloader,
                 split=args.calib_split,
                 text_field=args.calib_text_field,
+                calib_size=args.calib_num_samples,
             )
 
             ModelClass.quantize(
@@ -135,6 +136,7 @@ def convert_and_quantize(args, rank, world_size):
                 calib_max_seq_length=args.calib_max_seq_length,
                 calib_batches=args.calib_batches,
                 tokenizer_max_seq_length=args.tokenizer_max_seq_length,
+                random_seed=args.random_seed,
             )
 
             print(f"[Rank 0] Calibration complete. Checkpoint saved to {checkpoint_dir}")
@@ -155,16 +157,15 @@ def convert_and_quantize(args, rank, world_size):
             mapping=mapping
         )
 
-# TODO: add logit toggle to CLI
 # TODO: Check rank functionalities
-def build_engine(model, args, rank, logits=True):
+def build_engine(model, args, rank):
     build_config = BuildConfig()
     build_config.max_input_len = args.max_input_len
     build_config.max_seq_len = args.max_seq_len
     build_config.max_batch_size = args.max_batch_size
     build_config.max_num_tokens = args.max_num_tokens
     build_config.max_beam_width = args.max_beam_width
-    build_config.gather_context_logits = logits
+    build_config.gather_context_logits = args.gather_context_logits
 
     print(f"[Rank {rank}] Building Engine...")
         
@@ -180,7 +181,9 @@ def main():
     
     parser.add_argument("--quant_mode", type=str, default="W4A16", 
                         help="Options: W4A16, W4A16_AWQ, FP8, W8A8_SQ, NO_QUANT, NONE")
-    parser.add_argument("--kv_cache_dtype", type=str, default=None, choices=[None, "int8", "fp8", "fp16", "bf16"]) # None, an bf16 redirect to fp16
+    parser.add_argument("--kv_cache_dtype",
+                        type=lambda x: None if x.lower() in ("none", "null") else x,
+                        default=None, choices=[None, "int8", "fp8"])
 
     parser.add_argument("--max_batch_size", type=int, default=32)
     parser.add_argument("--max_input_len", type=int, default=2048)
@@ -198,7 +201,9 @@ def main():
     parser.add_argument("--calib_split", type=str, default="train")
     parser.add_argument("--calib_text_field", type=str, default="text")
     parser.add_argument("--calib_num_samples", type=int, default=2048)
-    parser.add_argument("--calib_seed", type=int, default=0)
+    parser.add_argument("--random_seed", type=int, default=0)
+
+    parser.add_argument("--gather_context_logits", action=argparse.BooleanOptionalAction, default=False)
 
     parser.add_argument("--calib_batch_size", type=int, default=16)
     parser.add_argument("--calib_max_seq_length", type=int, default=6144)
