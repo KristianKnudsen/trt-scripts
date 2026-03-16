@@ -1,3 +1,6 @@
 model/trt_engines/**
 !model/trt_engines/.gitkeep
 *.sif
+*.cache
+*.out
+eval/result.csv
