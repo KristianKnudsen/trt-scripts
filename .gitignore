@@ -1,2 +1,3 @@
 model/trt_engines/**
 !model/trt_engines/.gitkeep
+*.sif
