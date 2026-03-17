@@ -62,7 +62,9 @@ _modelopt_mod.get_calib_dataloader = _get_calib_dataloader
 # The engine is hardware agnostic, the checkpoints are not. To get comparable results from HPC and Desktop use the same checkpoint, but build new engines.
 
 
-SUPPORTED_QUANTS = { "W8A16", 'W4A16', 'W4A16_AWQ', 'W4A8_AWQ', 'FP8', 'W8A8_SQ', 'NO_QUANT', 'NONE' , "W16A16"}
+SUPPORTED_QUANTS = {"W8A16", "W4A16", "W4A16_AWQ", "W4A8_AWQ", "FP8", "W8A8_SQ", "NO_QUANT", "NONE", "W16A16"}
+SUPPORTED_KV_QUANTS = {"fp8", "int8"}
+SUPPORTED_MODELS = {"mistral", "llama", "qwen"}
 
 
 @dataclass
@@ -96,6 +98,7 @@ class BuildConfig:
     model_dir = Path("")
     engine_out_dir: Optional[Path] = None
     checkpoint_out_dir: Optional[Path] = None
+    checkpoint_in_dir: Optional[Path] = None
 
 
 def load_config(config_path: str) -> BuildConfig:
@@ -122,19 +125,44 @@ def load_config(config_path: str) -> BuildConfig:
         cfg.engine_out_dir = Path(data["engine_out_dir"])
     if "checkpoint_out_dir" in data:
         cfg.checkpoint_out_dir = Path(data["checkpoint_out_dir"])
+    if "checkpoint_in_dir" in data:
+        cfg.checkpoint_in_dir = Path(data["checkpoint_in_dir"])
 
     return cfg
+
+def _get_model_class(cfg: BuildConfig):
+    model_type = cfg.model_type.lower()
+    if not any(m in model_type for m in SUPPORTED_MODELS):
+        raise Exception(f"Model {cfg.model_type} not supported. Supported: {SUPPORTED_MODELS}")
+    if "mistral" in model_type or "llama" in model_type:
+        return LLaMAForCausalLM
+    elif "qwen" in model_type:
+        return QWenForCausalLM
+
+
+def validate_dirs(cfg: BuildConfig):
+    has_model = cfg.model_dir != Path("")
+    has_ckpt_in = cfg.checkpoint_in_dir is not None
+    has_ckpt_out = cfg.checkpoint_out_dir is not None
+    has_engine_out = cfg.engine_out_dir is not None
+
+    if not has_model and not has_ckpt_in:
+        raise ValueError("Must specify either model_dir or checkpoint_in_dir")
+    if has_model and has_ckpt_in:
+        raise ValueError("Cannot specify both model_dir and checkpoint_in_dir")
+    if has_ckpt_in and has_ckpt_out:
+        raise ValueError("Cannot specify checkpoint_out_dir when loading from checkpoint_in_dir")
+    if has_ckpt_in and not has_engine_out:
+        raise ValueError("checkpoint_in_dir requires engine_out_dir (nothing to do otherwise)")
+    if has_model and not has_engine_out and not has_ckpt_out:
+        raise ValueError("Must specify at least one output: engine_out_dir or checkpoint_out_dir")
+
 
 def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     """
     No multi gpu support
     """
-    if "mistral" in cfg.model_type.lower() or "llama" in cfg.model_type.lower():
-        ModelClass = LLaMAForCausalLM
-    elif "qwen" in cfg.model_type.lower():
-        ModelClass = QWenForCausalLM
-    else:
-        raise Exception(f"Model {cfg.model_type} not supported")
+    ModelClass = _get_model_class(cfg)
 
     quant_config = QuantConfig()
     quant_config.quant_algo = QuantAlgo.NO_QUANT
@@ -143,11 +171,15 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     mode = cfg.quant_mode.upper()
 
     if mode not in SUPPORTED_QUANTS:
-        raise Exception(f"Quant {mode} not supported")
+        raise Exception(f"Quant {mode} not supported. Supported: {SUPPORTED_QUANTS}")
+
+    if cfg.kv_cache_dtype is not None and cfg.kv_cache_dtype not in SUPPORTED_KV_QUANTS:
+        raise Exception(f"KV cache dtype {cfg.kv_cache_dtype} not supported. Supported: {SUPPORTED_KV_QUANTS}")
 
     if mode == "W4A16":
         quant_config.quant_algo = QuantAlgo.W4A16
-    # Does not consider 32 bit models
+    # Does not consider 32 bit models or prequantized models.
+    # TODO: add support for prequantized models.
     elif mode in ("NO_QUANT", "NONE", "W16A16"):
         quant_config.quant_algo = QuantAlgo.NO_QUANT
     elif mode == "W8A16":
@@ -156,6 +188,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     elif mode == "W4A16_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A16_AWQ
         needs_calib = True
+    # Hopper?
     elif mode == "W4A8_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A8_AWQ
         needs_calib = True
@@ -166,6 +199,8 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     elif mode == "FP8":
         quant_config.quant_algo = QuantAlgo.FP8
         needs_calib = True
+    else:
+        raise Exception(f"Quant {mode} is in SUPPORTED_QUANTS but has no handler — add a branch above")
 
     # KV Cache Config
     # Hopper+
@@ -175,6 +210,8 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     # TODO: check compatibilities
     elif cfg.kv_cache_dtype == "int8":
         quant_config.kv_cache_quant_algo = QuantAlgo.INT8
+
+    quant_config.exclude_modules = ["*lm_head", "*router", "*vocab_embedding", "*position_embedding"]
 
     mapping = Mapping(world_size=world_size, rank=rank, tp_size=world_size)
 
@@ -255,13 +292,19 @@ def main():
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    validate_dirs(cfg)
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     world_size = comm.Get_size()
 
-    model = convert_and_quantize(cfg, rank, world_size)
-    print(f"[Rank {rank}] Convert and quantize complete.")
+    if cfg.checkpoint_in_dir:
+        print(f"[Rank {rank}] Loading from checkpoint: {cfg.checkpoint_in_dir}")
+        ModelClass = _get_model_class(cfg)
+        model = ModelClass.from_checkpoint(cfg.checkpoint_in_dir)
+    else:
+        model = convert_and_quantize(cfg, rank, world_size)
+        print(f"[Rank {rank}] Convert and quantize complete.")
 
     if cfg.engine_out_dir:
         build_engine(model, cfg, rank)
@@ -271,8 +314,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    """
-    Example run:
-    mpirun --allow-run-as-root -n 1 python build_engine.py --config build_config.json
-    """
