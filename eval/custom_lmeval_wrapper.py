@@ -4,7 +4,11 @@ import csv
 import copy
 import json
 import os
+import re
+import sys
+import tempfile
 import torch
+from contextlib import contextmanager
 from tqdm import tqdm
 from dataclasses import dataclass, fields
 from typing import Optional
@@ -128,6 +132,51 @@ def load_config(config_path: str) -> EvalConfig:
     return cfg
 
 
+# ---------------------------------------------------------------------------
+# TRT-LLM memory stats
+# ---------------------------------------------------------------------------
+
+_MEM_PATTERNS = {
+    "exec_context_mib":    re.compile(r"Allocated ([0-9.]+) (MiB) for execution context memory"),
+    "runtime_buffers_mib": re.compile(r"Allocated ([0-9.]+) (KB|MB|MiB|GiB) GPU memory for runtime buffers"),
+    "decoder_mib":         re.compile(r"Allocated ([0-9.]+) (KB|MB|MiB|GiB) GPU memory for decoder"),
+    "kv_cache_alloc_mib":  re.compile(r"Allocated ([0-9.]+) (GiB) for max tokens in paged KV cache"),
+}
+_UNIT_TO_MIB = {"KB": 1/1024, "KiB": 1/1024, "MB": 1, "MiB": 1, "GB": 1024, "GiB": 1024}
+
+
+@contextmanager
+def _capture_trtllm_logs():
+    """Redirects stdout/stderr at fd level to capture C++ TRT-LLM log output.
+    Yields a dict populated with parsed memory stats after the block exits."""
+    stats = {}
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".trtlog")
+    tmp_path = tmp.name; tmp.close()
+
+    saved = (os.dup(1), os.dup(2))
+    cap = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    sys.stdout.flush(); sys.stderr.flush()
+    os.dup2(cap, 1); os.dup2(cap, 2); os.close(cap)
+
+    try:
+        yield stats
+    finally:
+        sys.stdout.flush(); sys.stderr.flush()
+        for dst, src in zip((1, 2), saved):
+            os.dup2(src, dst); os.close(src)
+
+        text = open(tmp_path).read(); os.unlink(tmp_path)
+        sys.stdout.write(text); sys.stdout.flush()
+
+        for key, pat in _MEM_PATTERNS.items():
+            if m := pat.search(text):
+                stats[key] = round(float(m.group(1)) * _UNIT_TO_MIB[m.group(2)], 2)
+
+
+def _engine_disk_size_mib(engine_dir: Path) -> float:
+    return round(sum(p.stat().st_size for p in engine_dir.glob("*.engine")) / 1024 ** 2, 1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to JSON config file")
@@ -150,14 +199,17 @@ def main():
             obj.set_config(key="num_fewshot", value=e_config.few_shots)
             obj.set_fewshot_seed(seed=e_config.seed)
 
-    llm = LLM(
-        model=e_config.engine_dir,
-        tokenizer=e_config.model_dir,
-        kv_cache_config=KvCacheConfig(
-            free_gpu_memory_fraction=e_config.free_gpu_memory_fraction,
-        ),
-        max_batch_size=e_config.max_batch_size,
-    )
+    with _capture_trtllm_logs() as mem_stats:
+        llm = LLM(
+            model=e_config.engine_dir,
+            tokenizer=e_config.model_dir,
+            kv_cache_config=KvCacheConfig(
+                free_gpu_memory_fraction=e_config.free_gpu_memory_fraction,
+            ),
+            max_batch_size=e_config.max_batch_size,
+        )
+
+    mem_stats["engine_disk_mib"] = _engine_disk_size_mib(e_config.engine_dir)
 
     sampling_params = SamplingParams(
         max_tokens=e_config.max_tokens,
@@ -168,24 +220,30 @@ def main():
 
     result = eval.evaluate(llm, sampling_params, scores_filter=e_config.scores_filter)
 
-    append_result_csv(e_config, str(result))
+    append_result_csv(e_config, str(result), mem_stats)
 
     print(f"Measured accuracy: {result}")
+    print(f"Memory stats: {mem_stats}")
 
 
-def append_result_csv(e_config: EvalConfig, result: str, csv_path="results.csv"):
+_MEM_STAT_KEYS = ["engine_disk_mib", "exec_context_mib", "kv_cache_alloc_mib",
+                  "runtime_buffers_mib", "decoder_mib"]
+
+
+def append_result_csv(e_config: EvalConfig, result: str, mem_stats: dict = None, csv_path="results.csv"):
     file_exists = os.path.exists(csv_path)
+    mem_stats = mem_stats or {}
 
     with open(csv_path, "a", newline="") as f:
         writer = csv.writer(f)
 
         if not file_exists:
-            writer.writerow(["model", "task", "result", "config params"])
+            writer.writerow(["model", "task", "result", "config params"] + _MEM_STAT_KEYS)
 
-        writer.writerow([e_config.engine_dir.name, 
-                         e_config.task, 
+        writer.writerow([e_config.engine_dir.name,
+                         e_config.task,
                          result,
-                         str(e_config)])
+                         str(e_config)] + [mem_stats.get(k, "") for k in _MEM_STAT_KEYS])
 
 if __name__ == "__main__":
     main()
