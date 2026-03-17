@@ -5,10 +5,9 @@
     "temperature": 0.0,
     "return_context_logits": true,
     "seed": 0,
-    "num_samples": null,
+    "num_samples": 500,
     "task": "hellaswag",
     "few_shots": 5,
     "scores_filter": "acc_norm,none",
-    "model_dir": "/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b",
-    "engine_dir": "/workspace/trt-scripts/model/trt_engines/qwen2/W8A8_SQ_LOGITS"
+    "engine_dir": "qwen2/W8A8_SQ_LOGITS_LM_HEAD"
 }

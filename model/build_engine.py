@@ -97,12 +97,28 @@ class BuildConfig:
     checkpoint_in_dir: Optional[Path] = None
 
 
-def load_config(config_path: str) -> BuildConfig:
+def _load_paths(paths_file: str) -> dict:
+    with open(paths_file) as f:
+        return json.load(f)
+
+
+def _resolve_path(value: str, root_key: str, paths: dict) -> Path:
+    """If value is a relative path, prepend the matching root from paths.json."""
+    p = Path(value)
+    if p.is_absolute():
+        return p
+    return Path(paths[root_key]) / p
+
+
+def load_config(config_path: str, paths_file: str) -> BuildConfig:
     with open(config_path) as f:
         data = json.load(f)
 
+    paths = _load_paths(paths_file)
+
     field_names = {f.name for f in fields(BuildConfig)}
-    unknown = set(data) - field_names - {"model_dir", "engine_out_dir", "checkpoint_out_dir"}
+    path_keys = {"model_dir", "engine_out_dir", "checkpoint_out_dir", "checkpoint_in_dir"}
+    unknown = set(data) - field_names - path_keys
     if unknown:
         raise ValueError(f"Unknown config keys: {unknown}")
 
@@ -115,14 +131,19 @@ def load_config(config_path: str) -> BuildConfig:
 
     cfg = BuildConfig(**kwargs)
 
+    # model_dir: from config or fall back to paths.json
     if "model_dir" in data:
         cfg.model_dir = Path(data["model_dir"])
+    elif "model_dir" in paths:
+        cfg.model_dir = Path(paths["model_dir"])
+
+    # output paths: relative values are resolved against roots in paths.json
     if "engine_out_dir" in data:
-        cfg.engine_out_dir = Path(data["engine_out_dir"])
+        cfg.engine_out_dir = _resolve_path(data["engine_out_dir"], "engine_root", paths)
     if "checkpoint_out_dir" in data:
-        cfg.checkpoint_out_dir = Path(data["checkpoint_out_dir"])
+        cfg.checkpoint_out_dir = _resolve_path(data["checkpoint_out_dir"], "checkpoint_root", paths)
     if "checkpoint_in_dir" in data:
-        cfg.checkpoint_in_dir = Path(data["checkpoint_in_dir"])
+        cfg.checkpoint_in_dir = _resolve_path(data["checkpoint_in_dir"], "checkpoint_root", paths)
 
     return cfg
 
@@ -283,10 +304,11 @@ def build_engine(model, cfg: BuildConfig, rank: int):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to JSON config file")
+    parser.add_argument("--config", type=str, required=True, help="Path to JSON build config file")
+    parser.add_argument("--paths", type=str, required=True, help="Path to JSON paths config file")
     args = parser.parse_args()
 
-    cfg = load_config(args.config)
+    cfg = load_config(args.config, args.paths)
     validate_dirs(cfg)
 
     comm = MPI.COMM_WORLD

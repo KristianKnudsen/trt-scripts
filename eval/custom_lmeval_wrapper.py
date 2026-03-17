@@ -112,9 +112,12 @@ class EvalConfig:
     model_dir = Path("/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b")
     engine_dir = Path("/workspace/code/trt_engines/qwen2/W16A16_LOGITS")
 
-def load_config(config_path: str) -> EvalConfig:
+def load_config(config_path: str, paths_file: str) -> EvalConfig:
     with open(config_path) as f:
         data = json.load(f)
+
+    with open(paths_file) as f:
+        paths = json.load(f)
 
     field_names = {f.name for f in fields(EvalConfig)}
     unknown = set(data) - field_names - {"model_dir", "engine_dir"}
@@ -126,8 +129,12 @@ def load_config(config_path: str) -> EvalConfig:
 
     if "model_dir" in data:
         cfg.model_dir = Path(data["model_dir"])
+    elif "model_dir" in paths:
+        cfg.model_dir = Path(paths["model_dir"])
+
     if "engine_dir" in data:
-        cfg.engine_dir = Path(data["engine_dir"])
+        p = Path(data["engine_dir"])
+        cfg.engine_dir = p if p.is_absolute() else Path(paths["engine_root"]) / p
 
     return cfg
 
@@ -179,10 +186,11 @@ def _engine_disk_size_mib(engine_dir: Path) -> float:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to JSON config file")
+    parser.add_argument("--config", type=str, required=True, help="Path to JSON eval config file")
+    parser.add_argument("--paths", type=str, required=True, help="Path to JSON paths config file")
     args = parser.parse_args()
 
-    e_config = load_config(args.config)
+    e_config = load_config(args.config, args.paths)
 
     eval = LmEvalEvaluator(
         task_name=e_config.task,
