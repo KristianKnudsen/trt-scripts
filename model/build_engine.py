@@ -58,10 +58,6 @@ def _get_calib_dataloader(dataset_name_or_dir="cnn_dailymail",
 
 _modelopt_mod.get_calib_dataloader = _get_calib_dataloader
 
-# TODO: Split Engine Builder and Checkpont builder? Check examples. https://github.com/NVIDIA/TensorRT-LLM/blob/main/examples/models/core/qwen/convert_checkpoint.py
-# The engine is hardware agnostic, the checkpoints are not. To get comparable results from HPC and Desktop use the same checkpoint, but build new engines.
-
-
 SUPPORTED_QUANTS = {"W8A16", "W4A16", "W4A16_AWQ", "W4A8_AWQ", "FP8", "W8A8_SQ", "NO_QUANT", "NONE", "W16A16"}
 SUPPORTED_KV_QUANTS = {"fp8", "int8"}
 SUPPORTED_MODELS = {"mistral", "llama", "qwen"}
@@ -204,7 +200,6 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
 
     # KV Cache Config
     # Hopper+
-    # TODO: add exception for unsupported variables.
     if cfg.kv_cache_dtype == "fp8":
         quant_config.kv_cache_quant_algo = QuantAlgo.FP8
     # TODO: check compatibilities
