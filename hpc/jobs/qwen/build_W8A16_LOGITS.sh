@@ -12,7 +12,7 @@ BASE="/cluster/home/krisskn/master-thesis/trt-scripts"
 MODEL_DIR="/cluster/home/krisskn/master-thesis/hf-cache/models/Qwen2.5-3B"
 CONFIG="build_config_W8A16_LOGITS.json"
 
-srun apptainer exec --nv --writable-tmpfs \
+srun /usr/bin/apptainer exec --nv --writable-tmpfs \
   $BASE/hpc/trtllm-tools.sif \
   python $BASE/model/build_engine.py \
     --config $BASE/model/configs/hpc/qwen/$CONFIG \

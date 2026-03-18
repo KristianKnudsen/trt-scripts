@@ -12,7 +12,7 @@ BASE="/workspace/trt-scripts"
 MODEL_DIR="/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b"
 CONFIG="default_config.json"
 
-srun apptainer exec --nv --writable-tmpfs \
+srun /usr/bin/apptainer exec --nv --writable-tmpfs \
   $BASE/hpc/trtllm-tools.sif \
   python $BASE/eval/custom_lmeval_wrapper.py \
     --config $BASE/eval/configs/$CONFIG \
