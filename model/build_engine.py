@@ -126,7 +126,7 @@ def load_config(config_path: str, base: str, model_dir: str) -> BuildConfig:
 
     cfg = BuildConfig(**kwargs)
 
-    cfg.model_dir = Path(data["model_dir"]) if "model_dir" in data else Path(model_dir)
+    cfg.model_dir = data["model_dir"] if "model_dir" in data else model_dir
 
     if "engine_out_dir" in data:
         cfg.engine_out_dir = _resolve_path(data["engine_out_dir"], engine_root)
