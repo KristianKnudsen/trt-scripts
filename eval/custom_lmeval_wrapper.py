@@ -112,12 +112,11 @@ class EvalConfig:
     model_dir = Path("/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b")
     engine_dir = Path("/workspace/code/trt_engines/qwen2/W16A16_LOGITS")
 
-def load_config(config_path: str, paths_file: str) -> EvalConfig:
+def load_config(config_path: str, base: str, model_dir: str) -> EvalConfig:
     with open(config_path) as f:
         data = json.load(f)
 
-    with open(paths_file) as f:
-        paths = json.load(f)
+    engine_root = Path(base) / "model" / "trt_engines"
 
     field_names = {f.name for f in fields(EvalConfig)}
     unknown = set(data) - field_names - {"model_dir", "engine_dir"}
@@ -127,14 +126,11 @@ def load_config(config_path: str, paths_file: str) -> EvalConfig:
     kwargs = {k: v for k, v in data.items() if k in field_names}
     cfg = EvalConfig(**kwargs)
 
-    if "model_dir" in data:
-        cfg.model_dir = Path(data["model_dir"])
-    elif "model_dir" in paths:
-        cfg.model_dir = Path(paths["model_dir"])
+    cfg.model_dir = Path(data["model_dir"]) if "model_dir" in data else Path(model_dir)
 
     if "engine_dir" in data:
         p = Path(data["engine_dir"])
-        cfg.engine_dir = p if p.is_absolute() else Path(paths["engine_root"]) / p
+        cfg.engine_dir = p if p.is_absolute() else engine_root / p
 
     return cfg
 
@@ -187,10 +183,11 @@ def _engine_disk_size_mib(engine_dir: Path) -> float:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to JSON eval config file")
-    parser.add_argument("--paths", type=str, required=True, help="Path to JSON paths config file")
+    parser.add_argument("--base", type=str, required=True, help="Path to trt-scripts root directory")
+    parser.add_argument("--model-dir", type=str, required=True, help="Path to HuggingFace model snapshot")
     args = parser.parse_args()
 
-    e_config = load_config(args.config, args.paths)
+    e_config = load_config(args.config, args.base, args.model_dir)
 
     eval = LmEvalEvaluator(
         task_name=e_config.task,

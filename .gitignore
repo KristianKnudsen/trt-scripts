@@ -1,5 +1,7 @@
 model/trt_engines/**
 !model/trt_engines/.gitkeep
+model/trt_checkpoints/**
+!model/trt_checkpoints/.gitkeep
 *.sif
 *.cache
 *.out

@@ -97,24 +97,19 @@ class BuildConfig:
     checkpoint_in_dir: Optional[Path] = None
 
 
-def _load_paths(paths_file: str) -> dict:
-    with open(paths_file) as f:
-        return json.load(f)
-
-
-def _resolve_path(value: str, root_key: str, paths: dict) -> Path:
-    """If value is a relative path, prepend the matching root from paths.json."""
+def _resolve_path(value: str, root: Path) -> Path:
+    """If value is a relative path, prepend root."""
     p = Path(value)
-    if p.is_absolute():
-        return p
-    return Path(paths[root_key]) / p
+    return p if p.is_absolute() else root / p
 
 
-def load_config(config_path: str, paths_file: str) -> BuildConfig:
+def load_config(config_path: str, base: str, model_dir: str) -> BuildConfig:
     with open(config_path) as f:
         data = json.load(f)
 
-    paths = _load_paths(paths_file)
+    base_path = Path(base)
+    engine_root = base_path / "model" / "trt_engines"
+    checkpoint_root = base_path / "model" / "trt_checkpoints"
 
     field_names = {f.name for f in fields(BuildConfig)}
     path_keys = {"model_dir", "engine_out_dir", "checkpoint_out_dir", "checkpoint_in_dir"}
@@ -131,19 +126,14 @@ def load_config(config_path: str, paths_file: str) -> BuildConfig:
 
     cfg = BuildConfig(**kwargs)
 
-    # model_dir: from config or fall back to paths.json
-    if "model_dir" in data:
-        cfg.model_dir = Path(data["model_dir"])
-    elif "model_dir" in paths:
-        cfg.model_dir = Path(paths["model_dir"])
+    cfg.model_dir = Path(data["model_dir"]) if "model_dir" in data else Path(model_dir)
 
-    # output paths: relative values are resolved against roots in paths.json
     if "engine_out_dir" in data:
-        cfg.engine_out_dir = _resolve_path(data["engine_out_dir"], "engine_root", paths)
+        cfg.engine_out_dir = _resolve_path(data["engine_out_dir"], engine_root)
     if "checkpoint_out_dir" in data:
-        cfg.checkpoint_out_dir = _resolve_path(data["checkpoint_out_dir"], "checkpoint_root", paths)
+        cfg.checkpoint_out_dir = _resolve_path(data["checkpoint_out_dir"], checkpoint_root)
     if "checkpoint_in_dir" in data:
-        cfg.checkpoint_in_dir = _resolve_path(data["checkpoint_in_dir"], "checkpoint_root", paths)
+        cfg.checkpoint_in_dir = _resolve_path(data["checkpoint_in_dir"], checkpoint_root)
 
     return cfg
 
@@ -305,10 +295,11 @@ def build_engine(model, cfg: BuildConfig, rank: int):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to JSON build config file")
-    parser.add_argument("--paths", type=str, required=True, help="Path to JSON paths config file")
+    parser.add_argument("--base", type=str, required=True, help="Path to trt-scripts root directory")
+    parser.add_argument("--model-dir", type=str, required=True, help="Path to HuggingFace model snapshot")
     args = parser.parse_args()
 
-    cfg = load_config(args.config, args.paths)
+    cfg = load_config(args.config, args.base, args.model_dir)
     validate_dirs(cfg)
 
     comm = MPI.COMM_WORLD
