@@ -2,6 +2,7 @@
 #SBATCH --partition=GPUQ
 #SBATCH --account=share-ie-idi
 #SBATCH --gres=gpu:a100:1
+#SBATCH --ntasks=1
 #SBATCH --mem=32G
 #SBATCH --job-name="build_W8A16_LOGITS"
 #SBATCH -c4

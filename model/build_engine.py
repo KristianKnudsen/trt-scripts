@@ -227,6 +227,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
 
         if rank == 0:
             print(f"[Rank 0] Starting {mode} calibration...")
+            Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
             _modelopt_mod.get_calib_dataloader = partial(
                 _get_calib_dataloader,
@@ -271,6 +272,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
         )
 
         if cfg.checkpoint_out_dir and rank == 0:
+            cfg.checkpoint_out_dir.mkdir(parents=True, exist_ok=True)
             model.save_checkpoint(cfg.checkpoint_out_dir)
             print(f"[Rank 0] Checkpoint saved to {cfg.checkpoint_out_dir}")
 
@@ -289,6 +291,7 @@ def build_engine(model, cfg: BuildConfig, rank: int):
 
     print(f"[Rank {rank}] Building Engine...")
 
+    cfg.engine_out_dir.mkdir(parents=True, exist_ok=True)
     engine = build(model, trt_build_config)
     engine.save(cfg.engine_out_dir)
 
