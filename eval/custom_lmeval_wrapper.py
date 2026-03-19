@@ -18,7 +18,7 @@ from tensorrt_llm.sampling_params import SamplingParams
 
 def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **kwargs):
     """
-    Full MMLU task will crash. Divide the tasks as much as possible for stable evaluation. Making big requests with gather logits enabled
+    Full MMLU task will crash on certain hardware (HPC will work, allocate a lot of ram). Divide the tasks as much as possible for stable evaluation. Making big requests with gather logits enabled
     seems to have some kind of memory accumulation in the eninge.
     """
     profiler.start("trtllm exec")
