@@ -1,2 +1,0 @@
-model,task,result,config params,engine_disk_mib,exec_context_mib,kv_cache_alloc_mib,runtime_buffers_mib,decoder_mib
-W8A8_SQ_LOGITS_LM_HEAD,hellaswag,73.8,"EvalConfig(free_gpu_memory_fraction=0.8, max_batch_size=1, max_tokens=1, temperature=0.0, return_context_logits=True, seed=0, num_samples=500, task='hellaswag', few_shots=5, scores_filter='acc_norm,none')",3271.2,4175.02,12840.96,0.7,2.48
