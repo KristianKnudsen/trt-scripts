@@ -4,7 +4,7 @@
 #SBATCH --gres=gpu:a100:1
 #SBATCH --ntasks=1
 #SBATCH --mem=32G
-#SBATCH --job-name="eval_W16A16"
+#SBATCH --job-name="eval_W8A8_SQ"
 #SBATCH -c2
 #SBATCH --time=00:12:30
 #SBATCH --begin=now
@@ -12,7 +12,7 @@
 
 BASE="/cluster/home/krisskn/master-thesis/trt-scripts"
 MODEL_DIR="/cluster/home/krisskn/master-thesis/hf-cache/models/Qwen2.5-3B"
-QUANT="W16A16"
+QUANT="W8A8_SQ"
 
 CONFIGS=(
   "eval_humaneval.json"
