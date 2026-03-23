@@ -1,6 +1,6 @@
 # docker/
 
-Local development environment for running builds and evaluations outside of the HPC cluster. Uses the same base image as the HPC Apptainer container (`nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`).
+Docker environment for running builds and evaluations locally. Based on `nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`.
 
 ### Contents
 
@@ -52,7 +52,7 @@ The container mounts:
 
 ## Running Jobs
 
-Unlike the HPC setup, there is no SLURM — jobs are run directly inside the container. From a shell inside the container, invoke the build or eval scripts directly:
+Jobs are run directly inside the container. From a shell, invoke the build or eval scripts directly:
 
 ```bash
 bash /workspace/trt-scripts/docker/jobs/<model>/your_job.sh
@@ -62,7 +62,7 @@ bash /workspace/trt-scripts/docker/jobs/<model>/your_job.sh
 
 ## `jobs/`
 
-Job scripts for running builds and evals inside the container, organized by model. These mirror the HPC job scripts but without the SBATCH headers.
+Job scripts for running builds and evals inside the container, organized by model.
 
 ```
 jobs/
