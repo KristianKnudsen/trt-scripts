@@ -1,3 +1,16 @@
+## HPC
+
+This directory contains everything needed to run build and evaluation jobs on the HPC cluster using SLURM. Jobs are containerised via Apptainer and submitted as batch jobs.
+
+### Contents
+
+- [Container](#container-trtllm-toolssif)
+- [Engine Builds](#engine-builds)
+- [Evaluation](#evaluation)
+- [Serving](#serving)
+
+---
+
 ## Container (`trtllm-tools.sif`)
 
 The Apptainer image (`trtllm-tools.sif`) is built from `trtllm-tools.def` and provides the runtime environment for all build and eval jobs. It is based on `nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`.
@@ -14,40 +27,89 @@ mv trtllm-tools.sif ~/trt-scripts/hpc/
 
 ---
 
-## Engine Builds (SLURM)
+## Engine Builds
 
-Build scripts live under `hpc/jobs/<model>/`. Each script is an sbatch array job — one task per quantization config.
+Build jobs invoke `model/build_engine.py` inside the container, which compiles a TensorRT-LLM engine for a given model and quantization. Refer to the `model/` directory for build configs and further documentation (to be added).
 
-### Run all quants (Qwen)
+### Single build job
+
+For building one engine at a time, use `hpc/jobs/build_job_template.sh` as a starting point:
+
+1. Copy the template into `hpc/jobs/<model>/`
+2. Fill in the placeholders at the top of the script:
+   - `<BASE_PATH>` — path to the `trt-scripts` root
+   - `<MODEL>` — model subfolder name used in config paths (e.g. `qwen`)
+   - `<MODEL_DIR>` — HuggingFace model directory name (e.g. `Qwen2.5-3B`)
+   - `<QUANT>` — quantization name (e.g. `W16A16`)
+3. Submit with:
 
 ```bash
-sbatch hpc/jobs/qwen/build_array_all.sh
+sbatch hpc/jobs/<model>/your_build_job.sh
 ```
 
-### Create a new build job
+### Building multiple quants at once (array job)
 
-1. Copy `hpc/jobs/build_array_job_template.sh` into `hpc/jobs/<model>/`
-2. Fill in the placeholders at the top: `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`
-3. Add one entry per quant to the `CONFIGS` array and update `--array=0-N`
+To build several quantization variants in parallel, use `hpc/jobs/build_array_job_template.sh`. This submits one SLURM task per config, all running simultaneously.
+
+1. Copy the template into `hpc/jobs/<model>/`
+2. Fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>` at the top
+3. Add one entry per quant to the `CONFIGS` array, replacing `<QUANT>` with the actual quant names
+4. Update `--array=0-N` in the SBATCH header to match the number of configs (0-indexed)
+5. Submit with:
+
+```bash
+sbatch hpc/jobs/<model>/your_build_array_job.sh
+```
+
+See `hpc/jobs/qwen/build_array_all.sh` as a working example for the Qwen model.
 
 ---
 
-## Evaluation (SLURM)
+## Evaluation
 
-Each quant has two files:
-- `eval_array_<QUANT>.sh` — the sbatch array job (one task per benchmark)
-- `submit_eval_<QUANT>.sh` — submits task groups with their own `--time` and resource overrides
+Eval jobs invoke `eval/custom_lmeval_wrapper.py` inside the container, which runs benchmarks via `lm-eval`. Refer to the `eval/` directory for task configs and further documentation (to be added).
 
-### Run all quants (Qwen)
+### Single eval job
+
+For running one benchmark at a time, use `hpc/jobs/eval_job_template.sh` as a starting point:
+
+1. Copy the template into `hpc/jobs/<model>/`
+2. Fill in the placeholders at the top of the script:
+   - `<BASE_PATH>` — path to the `trt-scripts` root
+   - `<MODEL>` — model subfolder name used in config paths (e.g. `qwen`)
+   - `<MODEL_DIR>` — HuggingFace model directory name (e.g. `Qwen2.5-3B`)
+   - `<QUANT>` — quantization name (e.g. `W16A16`)
+   - `<TASK>` — benchmark name matching a config file under `eval/configs/<model>/<QUANT>/` (e.g. `mmlu`)
+3. Submit with:
 
 ```bash
-bash hpc/jobs/qwen/submit_eval_all.sh
+sbatch hpc/jobs/<model>/your_eval_job.sh
 ```
 
-### Run a single quant
+### Evaluating multiple benchmarks at once (array job)
+
+To run all benchmarks for a given quant in parallel, use `hpc/jobs/eval_array_job_template.sh`. Each array task picks a different benchmark config.
+
+1. Copy the template into `hpc/jobs/<model>/`
+2. Fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`, `<QUANT>` at the top
+3. The `CONFIGS` array lists all benchmark configs to run — add or remove entries as needed
+4. Make sure the corresponding config files exist under `eval/configs/<model>/<QUANT>/`
+5. Submit with:
 
 ```bash
-bash hpc/jobs/qwen/submit_eval_W16A16.sh
+sbatch hpc/jobs/<model>/your_eval_array_job.sh
+```
+
+### Different SBATCH parameters per task (submit scripts)
+
+SLURM array jobs share a single set of SBATCH parameters, so tasks with very different resource needs (e.g. time, memory, cores) cannot be handled in one `sbatch` call. In this case, use a submit script that fires multiple `sbatch` calls with different `--array`, `--time`, and resource overrides for each group of tasks.
+
+See `hpc/jobs/qwen/submit_eval_W16A16.sh` for a working example, and `hpc/jobs/qwen/submit_eval_all.sh` to run all quants in one go.
+
+Run a submit script with:
+
+```bash
+./hpc/jobs/<model>/submit_eval_<QUANT>.sh
 ```
 
 ### Monitor jobs
@@ -56,14 +118,8 @@ bash hpc/jobs/qwen/submit_eval_W16A16.sh
 squeue --me
 ```
 
-### Create a new eval job
-
-1. Copy `hpc/jobs/eval_array_job_template.sh` into `hpc/jobs/<model>/` and fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`, `<QUANT>`
-2. Copy `hpc/jobs/eval_job_template.sh` (or write a matching submit script) and update the `--array` and `--time` groups
-3. Add eval configs under `eval/configs/<model>/<QUANT>/` — one JSON per benchmark
-
 ---
 
-## Serving (optional)
+## Serving
 
-A built engine can be served via `trtllm-serve`. See `model/api/serve.sh`.
+A built engine can be served via `trtllm-serve`. See the `model/api/` directory.
