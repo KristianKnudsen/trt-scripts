@@ -50,27 +50,10 @@ def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **k
         is_greedy = bool((logits_f.argmax(dim=-1) == target).all())
         return logprob_sum, is_greedy
 
-    req_iter = iter(tqdm(requests, desc="Submitting requests", disable=disable_tqdm))
-
-    # Prime the pipeline with the first request
-    try:
-        first = next(req_iter)
-    except StopIteration:
-        return results
-
-    inp, prev_pt, prev_tt = _build_input(first)
-    prev_future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
-
-    for request in req_iter:
-        # Submit next request before blocking on the previous one
+    for request in tqdm(requests, desc="Processing requests", disable=disable_tqdm):
         inp, pt, tt = _build_input(request)
-        next_future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
-
-        results.append(_process(prev_future, prev_pt, prev_tt))
-        prev_future, prev_pt, prev_tt = next_future, pt, tt
-
-    # Drain the last pending request
-    results.append(_process(prev_future, prev_pt, prev_tt))
+        future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
+        results.append(_process(future, pt, tt))
 
     profiler.stop("trtllm exec")
     elapsed_time = profiler.elapsed_time_in_sec("trtllm exec")
@@ -134,10 +117,7 @@ def load_config(config_path: str, base: str, model_dir: str) -> EvalConfig:
 
     return cfg
 
-
-# ---------------------------------------------------------------------------
-# TRT-LLM memory stats
-# ---------------------------------------------------------------------------
+# 
 
 _MEM_PATTERNS = {
     "exec_context_mib":    re.compile(r"Allocated ([0-9.]+) (MiB) for execution context memory"),

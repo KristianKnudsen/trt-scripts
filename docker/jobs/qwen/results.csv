@@ -1,0 +1,4 @@
+model,task,result,config params,engine_disk_mib,exec_context_mib,kv_cache_alloc_mib,runtime_buffers_mib,decoder_mib
+W16A16_LOGITS,hellaswag,72.6,"EvalConfig(free_gpu_memory_fraction=0.8, max_batch_size=1, max_tokens=1, temperature=0.0, return_context_logits=True, seed=0, num_samples=500, task='hellaswag', few_shots=5, scores_filter='acc_norm,none')",5917.6,1942.51,12390.4,0.67,2.48
+W16A16_LOGITS,mmlu,69.12280701754386,"EvalConfig(free_gpu_memory_fraction=0.4, max_batch_size=1, max_tokens=1, temperature=0.0, return_context_logits=True, seed=0, num_samples=5, task='mmlu', few_shots=5, scores_filter='acc,none')",5917.6,1942.51,6082.56,0.67,2.48
+W16A16_LOGITS,mmlu,65.96491228070175,"EvalConfig(free_gpu_memory_fraction=0.4, max_batch_size=1, max_tokens=1, temperature=0.0, return_context_logits=True, seed=0, num_samples=10, task='mmlu', few_shots=5, scores_filter='acc,none')",5917.6,1942.51,6062.08,0.67,2.48
