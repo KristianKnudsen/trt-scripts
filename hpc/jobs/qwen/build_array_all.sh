@@ -8,7 +8,7 @@
 #SBATCH -c2
 #SBATCH --time=00-00:30:00
 #SBATCH --begin=now
-#SBATCH --array=0-5
+#SBATCH --array=0-4
 #SBATCH --output=/cluster/home/krisskn/master-thesis/trt-scripts/hpc/logs/build_%A_%a.out
 
 BASE="/cluster/home/krisskn/master-thesis/trt-scripts"
@@ -20,7 +20,6 @@ CONFIGS=(
   "build_config_W8A8_SQ_LOGITS.json"  # 2
   "build_config_W4A16_LOGITS.json"    # 3
   "build_config_W4A16_AWQ_LOGITS.json" # 4
-  "build_config_W4A8_AWQ_LOGITS.json"  # 5
 )
 
 CONFIG=${CONFIGS[$SLURM_ARRAY_TASK_ID]}

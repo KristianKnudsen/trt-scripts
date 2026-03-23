@@ -195,14 +195,13 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
     elif mode == "W4A16_AWQ":
         quant_config.quant_algo = QuantAlgo.W4A16_AWQ
         needs_calib = True
-    # Hopper?
-    elif mode == "W4A8_AWQ":
-        quant_config.quant_algo = QuantAlgo.W4A8_AWQ
-        needs_calib = True
     elif mode == "W8A8_SQ":
         quant_config.quant_algo = QuantAlgo.W8A8_SQ_PER_CHANNEL_PER_TOKEN_PLUGIN
         needs_calib = True
     # Hopper+
+    elif mode == "W4A8_AWQ":
+        quant_config.quant_algo = QuantAlgo.W4A8_AWQ
+        needs_calib = True
     elif mode == "FP8":
         quant_config.quant_algo = QuantAlgo.FP8
         needs_calib = True

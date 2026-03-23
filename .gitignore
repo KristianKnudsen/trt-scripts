@@ -8,4 +8,5 @@ model/trt_checkpoints/**
 hpc/logs/*
 !hpc/logs/.gitkeep
 **/result.csv
+**/results.csv
 .hf_token
