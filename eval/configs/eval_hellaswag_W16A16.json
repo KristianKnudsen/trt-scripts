@@ -5,7 +5,7 @@
     "temperature": 0.0,
     "return_context_logits": true,
     "seed": 0,
-    "num_samples": 5,
+    "num_samples": null,
     "task": "hellaswag",
     "few_shots": 5,
     "scores_filter": "acc_norm,none",
