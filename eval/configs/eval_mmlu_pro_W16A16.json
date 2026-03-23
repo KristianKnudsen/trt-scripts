@@ -1,9 +1,9 @@
 {
     "free_gpu_memory_fraction": 0.4,
     "max_batch_size": 1,
-    "max_tokens": 1,
+    "max_tokens": 512,
     "temperature": 0.0,
-    "return_context_logits": true,
+    "return_context_logits": false,
     "seed": 0,
     "num_samples": 5,
     "task": "mmlu_pro",
