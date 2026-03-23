@@ -1,4 +1,4 @@
-# trt-scripts
+# TensorRT-LLM Evaluation Tools
 
 Scripts for quantizing, building, evaluating, and serving TensorRT-LLM engines, developed as part of a master thesis project.
 
