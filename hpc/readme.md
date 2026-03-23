@@ -29,7 +29,7 @@ mv trtllm-tools.sif ~/trt-scripts/hpc/
 
 ## Engine Builds
 
-Build jobs invoke `model/build_engine.py` inside the container, which compiles a TensorRT-LLM engine for a given model and quantization. Refer to the [`model/`](../model) directory for build configs and documentation.
+Build jobs invoke [`model/build_engine.py`](../model/build_engine.py) inside the container, which compiles a TensorRT-LLM engine for a given model and quantization. Refer to the [`model/`](../model) directory for build configs and documentation.
 
 ### Single build job
 
@@ -61,17 +61,17 @@ To build several quantization variants in parallel, use `hpc/jobs/build_array_jo
 sbatch hpc/jobs/<model>/your_build_array_job.sh
 ```
 
-See `hpc/jobs/qwen/build_array_all.sh` as a working example for the Qwen model.
+See [`hpc/jobs/qwen/build_array_all.sh`](jobs/qwen/build_array_all.sh) as a working example for the Qwen model.
 
 ---
 
 ## Evaluation
 
-Eval jobs invoke `eval/custom_lmeval_wrapper.py` inside the container, which runs benchmarks via `lm-eval`. Refer to the [`eval/`](../eval) directory for task configs and documentation.
+Eval jobs invoke [`eval/custom_lmeval_wrapper.py`](../eval/custom_lmeval_wrapper.py) inside the container, which runs benchmarks via `lm-eval`. Refer to the [`eval/`](../eval) directory for task configs and documentation.
 
 ### Single eval job
 
-For running one benchmark at a time, use `hpc/jobs/eval_job_template.sh` as a starting point:
+For running one benchmark at a time, use [`hpc/jobs/eval_job_template.sh`](jobs/eval_job_template.sh) as a starting point:
 
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in the placeholders at the top of the script:
@@ -88,7 +88,7 @@ sbatch hpc/jobs/<model>/your_eval_job.sh
 
 ### Evaluating multiple benchmarks at once (array job)
 
-To run all benchmarks for a given quant in parallel, use `hpc/jobs/eval_array_job_template.sh`. Each array task picks a different benchmark config.
+To run all benchmarks for a given quant in parallel, use [`hpc/jobs/eval_array_job_template.sh`](jobs/eval_array_job_template.sh). Each array task picks a different benchmark config.
 
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`, `<QUANT>` at the top
@@ -104,7 +104,7 @@ sbatch hpc/jobs/<model>/your_eval_array_job.sh
 
 SLURM array jobs share a single set of SBATCH parameters, so tasks with very different resource needs (e.g. time, memory, cores) cannot be handled in one `sbatch` call. In this case, use a submit script that fires multiple `sbatch` calls with different `--array`, `--time`, and resource overrides for each group of tasks.
 
-See `hpc/jobs/qwen/submit_eval_W16A16.sh` for a working example, and `hpc/jobs/qwen/submit_eval_all.sh` to run all quants in one go.
+See [`hpc/jobs/qwen/submit_eval_W16A16.sh`](jobs/qwen/submit_eval_W16A16.sh) for a working example, and [`hpc/jobs/qwen/submit_eval_all.sh`](jobs/qwen/submit_eval_all.sh) to run all quants in one go.
 
 Run a submit script with:
 
