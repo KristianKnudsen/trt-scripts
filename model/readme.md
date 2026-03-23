@@ -69,7 +69,7 @@ Configs are JSON files passed to `build_engine.py`. All paths are relative to th
 | `max_seq_len` | int | Maximum total sequence length (input + output) per request |
 | `max_num_tokens` | int | Maximum total tokens across all requests in a batch |
 | `max_beam_width` | int | Beam search width. `1` = greedy decoding |
-| `gather_context_logits` | bool | Output per-token logits over the full context. Required for loglikelihood-based eval tasks (e.g. MMLU, HellaSwag). Engines with this enabled use the `_LOGITS` suffix by convention |
+| `gather_context_logits` | bool | Output per-token logits over the full context. Required for loglikelihood-based eval tasks (e.g. MMLU, HellaSwag). Engines with this enabled use the `_LOGITS` suffix by convention. **Note:** enabling this comes with significant performance penalties — only use it for evaluation, not serving |
 
 ### Calibration
 
@@ -90,7 +90,7 @@ Used by quantization methods that require calibration data (e.g. `W8A8_SQ`, `W4A
 | Parameter | Type | Description |
 |---|---|---|
 | `engine_out_dir` | string | Output path for the compiled engine, relative to `model/trt_engines/` |
-| `checkpoint_out_dir` | string | Output path for the quantized checkpoint, relative to `model/trt_checkpoints/` |
+| `checkpoint_out_dir` | string \| null | Output path for the quantized checkpoint, relative to `model/trt_checkpoints/`. Can be `null` if building from an existing checkpoint via `checkpoint_in_dir` |
 | `checkpoint_in_dir` | string \| null | Path to an existing checkpoint to build from, skipping quantization. Relative to `model/trt_checkpoints/` |
 
 ---
@@ -101,11 +101,11 @@ Used by quantization methods that require calibration data (e.g. `W8A8_SQ`, `W4A
 |---|---|---|---|
 | `W16A16` | float16 | float16 | No quantization. Baseline |
 | `W8A16` | int8 | float16 | Weight-only quantization |
-| `W4A16` | int4 | float16 | Weight-only quantization (GPTQ-style) |
+| `W4A16` | int4 | float16 | Weight-only quantization (RTN) |
 | `W4A16_AWQ` | int4 | float16 | Weight-only with AWQ calibration |
-| `W4A8_AWQ` | int4 | int8 | AWQ weights + quantized activations |
+| `W4A8_AWQ` | int4 | fp8 | AWQ weights + quantized activations. Requires Hopper architecture or newer |
 | `W8A8_SQ` | int8 | int8 | SmoothQuant — requires calibration |
-| `FP8` | fp8 | fp8 | Requires hardware support (e.g. H100) |
+| `FP8` | fp8 | fp8 | Requires Hopper architecture or newer |
 
 ---
 
