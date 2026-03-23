@@ -33,7 +33,7 @@ Build jobs invoke [`model/build_engine.py`](../model/build_engine.py) inside the
 
 ### Single build job
 
-For building one engine at a time, use `hpc/jobs/build_job_template.sh` as a starting point:
+For building one engine at a time, use [`hpc/jobs/build_job_template.sh`](jobs/build_job_template.sh) as a starting point:
 
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in the placeholders at the top of the script:
@@ -49,7 +49,7 @@ sbatch hpc/jobs/<model>/your_build_job.sh
 
 ### Building multiple quants at once (array job)
 
-To build several quantization variants in parallel, use `hpc/jobs/build_array_job_template.sh`. This submits one SLURM task per config, all running simultaneously.
+To build several quantization variants in parallel, use [`hpc/jobs/build_array_job_template.sh`](jobs/build_array_job_template.sh). This submits one SLURM task per config, all running simultaneously.
 
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>` at the top
