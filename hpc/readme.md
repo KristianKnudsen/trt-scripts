@@ -1,52 +1,69 @@
-## HPC Container Build (Apptainer)
+## Container (`trtllm-tools.sif`)
 
-The container image was built using an Apptainer definition file (`trtllm-tools.def`) to produce a persistent `.sif` image for the HPC environment.
+The Apptainer image is built from `trtllm-tools.def` (based on `nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`) and must be present at `hpc/trtllm-tools.sif` for all jobs to run.
 
-### Build Steps
+### Build
 
 ```bash
 cd /localscratch
 apptainer build --fakeroot trtllm-tools.sif ~/trt-scripts/hpc/trtllm-tools.def
-mv trtllm-tools.sif ~/
+mv trtllm-tools.sif ~/trt-scripts/hpc/
 ```
 
-### Result
+> `/localscratch` is used due to limitations on network-mounted home directories. Rebuild by rerunning after updating `.def`.
 
-Persistent container image:
+---
 
-```
-~/trtllm-tools.sif
-```
+## Engine Builds (SLURM)
 
-### Notes
+Build scripts live under `hpc/jobs/<model>/`. Each script is an sbatch array job — one task per quantization config.
 
-- `/localscratch` is used for building due to limitations on network-mounted home directories.
-- Rebuild by repeating the same command after updating the `.def` file.
+### Run all quants (Qwen)
 
-## HPC use
-
-### Load MPI module required on HPC nodes
-```
-module load OpenMPI/4.1.6-GCC-13.2.0
+```bash
+sbatch hpc/jobs/qwen/build_array_all.sh
 ```
 
-### Start an interactive container shell with GPU access on the HPC node
+### Create a new build job
+
+1. Copy `hpc/jobs/build_array_job_template.sh` into `hpc/jobs/<model>/`
+2. Fill in the placeholders at the top: `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`
+3. Add one entry per quant to the `CONFIGS` array and update `--array=0-N`
+
+---
+
+## Evaluation (SLURM)
+
+Each quant has two files:
+- `eval_array_<QUANT>.sh` — the sbatch array job (one task per benchmark)
+- `submit_eval_<QUANT>.sh` — submits task groups with their own `--time` and resource overrides
+
+### Run all quants (Qwen)
+
+```bash
+bash hpc/jobs/qwen/submit_eval_all.sh
 ```
-apptainer shell --nv --writable-tmpfs ../../trtllm-tools.sif
+
+### Run a single quant
+
+```bash
+bash hpc/jobs/qwen/submit_eval_W16A16.sh
 ```
-### Start the LLM api inside the container
+
+### Monitor jobs
+
+```bash
+squeue --me
 ```
-mpirun -n 1 --oversubscribe --allow-run-as-root \
-trtllm-serve serve \
- --tokenizer "../../hf-cache/models/Qwen2.5-3B" \
- --backend trt \
- --log_level info \
- --max_batch_size 32 \
- --max_num_tokens 8192 \
- --num_postprocess_workers 0 \
- ../model/trt_engines/qwen2/W16A16
-```
-### Execute the lm-eval test script inside the container environment on the HPC node
-```
-apptainer exec --nv --writable-tmpfs ../../trtllm-tools.sif bash ./lmeval-test.sh
-```
+
+### Create a new eval job
+
+1. Copy `hpc/jobs/eval_array_job_template.sh` into `hpc/jobs/<model>/` and fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`, `<QUANT>`
+2. Copy `hpc/jobs/eval_job_template.sh` (or write a matching submit script) and update the `--array` and `--time` groups
+3. Add eval configs under `eval/configs/<model>/<QUANT>/` — one JSON per benchmark
+
+---
+
+## Serving (optional)
+
+A built engine can be served via `trtllm-serve`. See `model/api/serve.sh`.
