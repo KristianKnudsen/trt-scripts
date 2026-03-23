@@ -13,16 +13,22 @@ Local development environment for running builds and evaluations outside of the 
 
 ## Getting Started
 
-Build the image:
+Build the image from the [Dockerfile](Dockerfile):
 
 ```bash
 make build
 ```
 
-Then launch a shell inside the container:
+Launch a detached container with host networking:
 
 ```bash
-make run-shell
+make run-shell-detached-hosted
+```
+
+Then attach to it:
+
+```bash
+docker exec -it trt_shell bash
 ```
 
 The container mounts:
