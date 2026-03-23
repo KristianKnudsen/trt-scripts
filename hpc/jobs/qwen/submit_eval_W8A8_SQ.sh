@@ -7,8 +7,8 @@ sbatch --array=0,1,5,6,7 --time=00:12:30 "$SCRIPT"
 # hellaswag(4) — 1 hour
 sbatch --array=4 --time=01:00:00 "$SCRIPT"
 
-# mmlu(2) — 3 hours, 64GB RAM
-sbatch --array=2 --time=03:00:00 --mem=64G "$SCRIPT"
+# mmlu(2) — 2 hours, 64GB RAM
+sbatch --array=2 --time=02:00:00 --mem=64G "$SCRIPT"
 
-# mmlu_pro(3) — 4 hours, 4 cores
-sbatch --array=3 --time=04:00:00 -c4 "$SCRIPT"
+# mmlu_pro(3) — 4 hours, 4 cores, 48GB RAM
+sbatch --array=3 --time=04:00:00 --mem=48G -c4 "$SCRIPT"
