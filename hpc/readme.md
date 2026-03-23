@@ -1,6 +1,6 @@
 ## Container (`trtllm-tools.sif`)
 
-The Apptainer image is built from `trtllm-tools.def` (based on `nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`) and must be present at `hpc/trtllm-tools.sif` for all jobs to run.
+The Apptainer image (`trtllm-tools.sif`) is built from `trtllm-tools.def` and provides the runtime environment for all build and eval jobs. It is based on `nvcr.io/nvidia/tensorrt-llm/release:1.1.0rc5`.
 
 ### Build
 
