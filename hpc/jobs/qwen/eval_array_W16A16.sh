@@ -8,22 +8,22 @@
 #SBATCH -c2
 #SBATCH --time=00-00:10:00
 #SBATCH --begin=now
-#SBATCH --array=0-8
+#SBATCH --array=0-7
+#SBATCH --output=/cluster/home/krisskn/master-thesis/trt-scripts/hpc/logs/eval_%A_%a.out
 
 BASE="/cluster/home/krisskn/master-thesis/trt-scripts"
 MODEL_DIR="/cluster/home/krisskn/master-thesis/hf-cache/models/Qwen2.5-3B"
 QUANT="W16A16"
 
 CONFIGS=(
+  "eval_humaneval_${QUANT}.json" # 6
+  "eval_mbpp_${QUANT}.json"      # 7
   "eval_mmlu_${QUANT}.json"           # 0
   "eval_mmlu_pro_${QUANT}.json"       # 1
   "eval_hellaswag_${QUANT}.json"      # 2
   "eval_winogrande_${QUANT}.json"     # 3
   "eval_gpqa_${QUANT}.json"           # 4
   "eval_gsm8k_${QUANT}.json"          # 5
-  "eval_humaneval_plus_${QUANT}.json" # 6
-  "eval_mbpp_plus_${QUANT}.json"      # 7
-  "eval_multiple_py_${QUANT}.json"    # 8
 )
 
 CONFIG=${CONFIGS[$SLURM_ARRAY_TASK_ID]}

@@ -5,4 +5,7 @@ model/trt_checkpoints/**
 *.sif
 *.cache
 *.out
+hpc/logs/*
+!hpc/logs/.gitkeep
 eval/result.csv
+.hf_token

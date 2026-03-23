@@ -5,8 +5,8 @@
     "temperature": 0.0,
     "return_context_logits": true,
     "seed": 0,
-    "num_samples": null,
-    "task": "gpqa_main",
+    "num_samples": 5,
+    "task": "gpqa_main_zeroshot",
     "few_shots": 0,
     "scores_filter": "acc,none",
     "engine_dir": "qwen2/W16A16_LOGITS"

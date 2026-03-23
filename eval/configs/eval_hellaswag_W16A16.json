@@ -5,9 +5,9 @@
     "temperature": 0.0,
     "return_context_logits": true,
     "seed": 0,
-    "num_samples": 100,
+    "num_samples": 5,
     "task": "hellaswag",
-    "few_shots": 10,
+    "few_shots": 5,
     "scores_filter": "acc_norm,none",
     "engine_dir": "qwen2/W16A16_LOGITS"
 }

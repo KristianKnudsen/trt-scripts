@@ -5,15 +5,14 @@ MODEL_DIR="/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1
 QUANT="W16A16"
 
 CONFIGS=(
+  "eval_humaneval_${QUANT}.json"
+  "eval_mbpp_${QUANT}.json"
+  "eval_gpqa_${QUANT}.json"
   "eval_mmlu_${QUANT}.json"
   "eval_mmlu_pro_${QUANT}.json"
   "eval_hellaswag_${QUANT}.json"
   "eval_winogrande_${QUANT}.json"
-  "eval_gpqa_${QUANT}.json"
   "eval_gsm8k_${QUANT}.json"
-  "eval_humaneval_plus_${QUANT}.json"
-  "eval_mbpp_plus_${QUANT}.json"
-  "eval_multiple_py_${QUANT}.json"
 )
 
 for CONFIG in "${CONFIGS[@]}"; do

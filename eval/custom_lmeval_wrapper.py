@@ -1,9 +1,10 @@
+import os
+
 from tensorrt_llm.evaluate.lm_eval import LmEvalWrapper
 import argparse
 import csv
 import copy
 import json
-import os
 import re
 import sys
 import tempfile
@@ -160,6 +161,30 @@ def _engine_disk_size_mib(engine_dir: Path) -> float:
     return round(sum(p.stat().st_size for p in engine_dir.glob("*.engine")) / 1024 ** 2, 1)
 
 
+_CODE_EVAL_TASKS = {"humaneval", "mbpp"}
+_GATED_TASK_PREFIXES = {"gpqa"}
+
+def _prepare_task_env(task: str, base: str):
+    if task in _CODE_EVAL_TASKS:
+        os.environ["HF_ALLOW_CODE_EVAL"] = "1"
+    if any(task.startswith(p) for p in _GATED_TASK_PREFIXES):
+        token_path = Path(base) / ".hf_token"
+        if token_path.exists():
+            os.environ["HF_TOKEN"] = token_path.read_text().strip()
+
+    # TRT-LLM's eval wrapper doesn't expose confirm_run_unsafe_code. Patch both check sites.
+    if task in _CODE_EVAL_TASKS:
+        import lm_eval.tasks as _lm_tasks
+        import lm_eval.evaluator as _lm_evaluator
+        _orig_load = _lm_tasks.TaskManager._load_individual_task_or_group
+        def _patched_load(self, name_or_config):
+            self.confirm_run_unsafe_code = True
+            return _orig_load(self, name_or_config)
+        _lm_tasks.TaskManager._load_individual_task_or_group = _patched_load
+        _orig_eval = _lm_evaluator.evaluate
+        _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, confirm_run_unsafe_code=True, **kw)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to JSON eval config file")
@@ -168,10 +193,11 @@ def main():
     args = parser.parse_args()
 
     e_config = load_config(args.config, args.base, args.model_dir)
+    _prepare_task_env(e_config.task, args.base)
 
     eval = LmEvalEvaluator(
         task_name=e_config.task,
-        num_samples=e_config.num_samples
+        num_samples=e_config.num_samples,
     )
 
     stack = list(eval.task_dict.values())
