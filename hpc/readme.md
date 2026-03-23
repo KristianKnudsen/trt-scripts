@@ -29,7 +29,7 @@ mv trtllm-tools.sif ~/trt-scripts/hpc/
 
 ## Engine Builds
 
-Build jobs invoke `model/build_engine.py` inside the container, which compiles a TensorRT-LLM engine for a given model and quantization. Refer to the `model/` directory for build configs and further documentation (to be added).
+Build jobs invoke `model/build_engine.py` inside the container, which compiles a TensorRT-LLM engine for a given model and quantization. Refer to the [`model/`](../model) directory for build configs and documentation.
 
 ### Single build job
 
@@ -67,7 +67,7 @@ See `hpc/jobs/qwen/build_array_all.sh` as a working example for the Qwen model.
 
 ## Evaluation
 
-Eval jobs invoke `eval/custom_lmeval_wrapper.py` inside the container, which runs benchmarks via `lm-eval`. Refer to the `eval/` directory for task configs and further documentation (to be added).
+Eval jobs invoke `eval/custom_lmeval_wrapper.py` inside the container, which runs benchmarks via `lm-eval`. Refer to the [`eval/`](../eval) directory for task configs and documentation.
 
 ### Single eval job
 
@@ -122,4 +122,4 @@ squeue --me
 
 ## Serving
 
-A built engine can be served via `trtllm-serve`. See the `model/api/` directory.
+A built engine can be served via `trtllm-serve`. See the [`model/api/`](../model/api) directory.
