@@ -20,45 +20,30 @@ from tensorrt_llm.sampling_params import SamplingParams
 def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **kwargs):
     """
     Full MMLU task will crash on certain hardware (HPC will work, allocate a lot of ram). Divide the tasks as much as possible for stable evaluation. Making big requests with gather logits enabled
-    seems to have some kind of memory accumulation in the eninge.
+    seems to have some kind of memory accumulation in the engine.
     """
     profiler.start("trtllm exec")
-    results = []
 
     sp = copy.deepcopy(self.sampling_params) if self.sampling_params else SamplingParams()
     sp.max_tokens = 1
     sp.temperature = 0.0
     sp.return_context_logits = True
 
-    def _build_input(request):
-        _, prompt_tokens, target_tokens = request
-        prompt_tokens = list(prompt_tokens)
-        target_tokens = list(target_tokens)
-        inp = prompt_tokens + target_tokens[:-1]
-        return inp, prompt_tokens, target_tokens
-
-    def _process(gen_output, prompt_tokens, target_tokens):
-        output = gen_output.result()
+    results = []
+    for _, prompt_tokens, target_tokens in tqdm(requests, desc="Processing requests", disable=disable_tqdm):
+        output = self.llm.generate(prompt_tokens + target_tokens[:-1], sampling_params=sp, use_tqdm=False).result()
         start = len(prompt_tokens) - 1
-        end = start + len(target_tokens)
-        logits = output.context_logits[start:end].clone()
-        del gen_output, output
+        logits_f = output.context_logits[start:start + len(target_tokens)].clone()
 
-        logits_f = logits.float()
         target = torch.tensor(target_tokens, device=logits_f.device)
-        token_lp = logits_f[torch.arange(len(target_tokens)), target]
-        logprob_sum = float((token_lp - torch.logsumexp(logits_f, dim=-1)).sum())
+        # log-softmax of the correct token at each position, summed as the overall sequence score
+        logprob_sum = float((logits_f[torch.arange(len(target_tokens)), target] - torch.logsumexp(logits_f, dim=-1)).sum())
+        # true if the model's top-1 prediction matched the target at every position
         is_greedy = bool((logits_f.argmax(dim=-1) == target).all())
-        return logprob_sum, is_greedy
-
-    for request in tqdm(requests, desc="Processing requests", disable=disable_tqdm):
-        inp, pt, tt = _build_input(request)
-        future = self.llm.generate(inp, sampling_params=sp, use_tqdm=False)
-        results.append(_process(future, pt, tt))
+        results.append((logprob_sum, is_greedy))
 
     profiler.stop("trtllm exec")
-    elapsed_time = profiler.elapsed_time_in_sec("trtllm exec")
-    logger.info(f"TRTLLM execution time: {elapsed_time:.3f} seconds.")
+    logger.info(f"TRTLLM execution time: {profiler.elapsed_time_in_sec('trtllm exec'):.3f} seconds.")
     profiler.reset("trtllm exec")
 
     return results
