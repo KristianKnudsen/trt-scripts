@@ -172,15 +172,9 @@ def _prepare_task_env(task: str, base: str):
         if token_path.exists():
             os.environ["HF_TOKEN"] = token_path.read_text().strip()
 
-    # TRT-LLM's eval wrapper doesn't expose confirm_run_unsafe_code. Patch both check sites.
+    # TRT-LLM doesnt expose confirm run unsafe code, so we patch it manually.
     if task in _CODE_EVAL_TASKS:
-        import lm_eval.tasks as _lm_tasks
         import lm_eval.evaluator as _lm_evaluator
-        _orig_load = _lm_tasks.TaskManager._load_individual_task_or_group
-        def _patched_load(self, name_or_config):
-            self.confirm_run_unsafe_code = True
-            return _orig_load(self, name_or_config)
-        _lm_tasks.TaskManager._load_individual_task_or_group = _patched_load
         _orig_eval = _lm_evaluator.evaluate
         _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, confirm_run_unsafe_code=True, **kw)
 
