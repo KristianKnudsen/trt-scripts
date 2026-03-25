@@ -157,11 +157,14 @@ def _prepare_task_env(task: str, base: str):
         if token_path.exists():
             os.environ["HF_TOKEN"] = token_path.read_text().strip()
 
+    import lm_eval.evaluator as _lm_evaluator
+    _orig_eval = _lm_evaluator.evaluate
+
     # TRT-LLM doesnt expose confirm run unsafe code nor log samples, so we patch them manually.
     if task in _CODE_EVAL_TASKS:
-        import lm_eval.evaluator as _lm_evaluator
-        _orig_eval = _lm_evaluator.evaluate
         _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, confirm_run_unsafe_code=True, log_samples=False, **kw)
+    else:
+        _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, log_samples=True, write_out=True, **kw)
 
 
 def main():
