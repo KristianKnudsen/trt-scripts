@@ -16,6 +16,29 @@ from typing import Optional
 from pathlib import Path
 from tensorrt_llm.sampling_params import SamplingParams
 
+def generate_until(self, requests, disable_tqdm: bool = False):
+    profiler.start("trtllm exec")
+    results = []
+    for request in tqdm(requests, desc="Submitting requests", disable=disable_tqdm):
+        prompt, gen_kwargs = request.args
+        sampling_params = self._get_sampling_params(gen_kwargs)
+        output = self.llm.generate_async(prompt, sampling_params=sampling_params, streaming=self.streaming)
+        results.append(output)
+
+    outputs = []
+    for output in tqdm(results, desc="Fetching responses", disable=disable_tqdm):
+        outputs.append(output.result())
+
+    profiler.stop("trtllm exec")
+    elapsed_time = profiler.elapsed_time_in_sec("trtllm exec")
+    logger.info(f"TRTLLM execution time: {elapsed_time:.3f} seconds.")
+    profiler.reset("trtllm exec")
+
+    texts = [output.outputs[0].text for output in outputs]
+    for req, text in zip(requests[:5], texts[:5]):
+        print(f"\n[DEBUG] Input: ...{req.args[0][-300:]}")
+        print(f"[DEBUG] Output: {text}")
+    return texts
 
 def _loglikelihood_tokens(self: LmEvalWrapper, requests, disable_tqdm=False, **kwargs):
     """
@@ -55,6 +78,7 @@ def loglikelihood_rolling(self, requests, disable_tqdm=False):
 
 LmEvalWrapper._loglikelihood_tokens = _loglikelihood_tokens
 LmEvalWrapper.loglikelihood_rolling = loglikelihood_rolling
+LmEvalWrapper.generate_until = generate_until
 
 from tensorrt_llm.evaluate.lm_eval import *
 from tensorrt_llm.llmapi.llm_args import KvCacheConfig
@@ -163,8 +187,6 @@ def _prepare_task_env(task: str, base: str):
     # TRT-LLM doesnt expose confirm run unsafe code nor log samples, so we patch them manually.
     if task in _CODE_EVAL_TASKS:
         _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, confirm_run_unsafe_code=True, log_samples=False, **kw)
-    else:
-        _lm_evaluator.evaluate = lambda *a, **kw: _orig_eval(*a, log_samples=True, write_out=True, **kw)
 
 
 def main():
