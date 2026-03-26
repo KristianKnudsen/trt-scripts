@@ -9,4 +9,6 @@ hpc/logs/*
 !hpc/logs/.gitkeep
 **/result.csv
 **/results.csv
+**/results_filtered.csv
 .hf_token
+__pycache__/

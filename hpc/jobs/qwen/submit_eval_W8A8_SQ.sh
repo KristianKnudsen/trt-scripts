@@ -11,4 +11,4 @@ sbatch --array=4 --time=01:00:00 "$SCRIPT"
 sbatch --array=2 --time=02:00:00 --mem=64G "$SCRIPT"
 
 # mmlu_pro(3) — 4 hours, 4 cores, 48GB RAM
-sbatch --array=3 --time=04:00:00 --mem=48G -c4 "$SCRIPT"
+sbatch --array=3 --time=03:00:00 --mem=48G -c4 "$SCRIPT"
