@@ -9,5 +9,6 @@
     "task": "gpqa_main_zeroshot",
     "few_shots": 0,
     "scores_filter": "acc,none",
-    "engine_dir": "qwen2/W8A16_LOGITS"
+    "engine_dir": "qwen2/W8A16_LOGITS",
+    "print_outputs": 0
 }

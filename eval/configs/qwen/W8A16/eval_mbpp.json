@@ -9,5 +9,6 @@
     "task": "mbpp",
     "few_shots": 3,
     "scores_filter": null,
-    "engine_dir": "qwen2/W8A16_LOGITS"
+    "engine_dir": "qwen2/W8A16_LOGITS",
+    "print_outputs": 0
 }

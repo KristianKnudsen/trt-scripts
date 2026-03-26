@@ -9,5 +9,6 @@
     "task": "winogrande",
     "few_shots": 5,
     "scores_filter": "acc,none",
-    "engine_dir": "qwen2/W8A8_SQ_LOGITS"
+    "engine_dir": "qwen2/W8A8_SQ_LOGITS",
+    "print_outputs": 0
 }

@@ -9,5 +9,6 @@
     "task": "hellaswag",
     "few_shots": 5,
     "scores_filter": "acc_norm,none",
-    "engine_dir": "qwen2/W8A16_LOGITS"
+    "engine_dir": "qwen2/W8A16_LOGITS",
+    "print_outputs": 0
 }
