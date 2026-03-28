@@ -1,4 +1,5 @@
 import os
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import argparse
 import csv
@@ -107,6 +108,8 @@ def _engine_disk_size_mib(engine_dir: Path) -> float:
 
 _CODE_EVAL_TASKS = {"humaneval", "mbpp"}
 _GATED_TASK_PREFIXES = {"gpqa"}
+# LmEvalEvaluator multiplies all metrics by 100; perplexity metrics must be divided back
+_PERPLEXITY_TASKS = {"wikitext", "ptb", "lambada_openai"}
 
 def _prepare_task_env(task: str, base: str):
     if task in _CODE_EVAL_TASKS:
@@ -166,6 +169,17 @@ def main():
     )
 
     result = eval.evaluate(llm, sampling_params, scores_filter=e_config.scores_filter)
+
+    # LmEvalEvaluator.evaluate() blindly multiplies all metrics by 100 to normalize
+    # accuracy scores into a 0-100 range. Perplexity is not an accuracy metric,
+    # so we undo that scaling here.
+    if e_config.task in _PERPLEXITY_TASKS:
+        result /= 100
+        stats = lmeval_patches.ppl_stats
+        if stats["num_tokens"] > 0:
+            import math
+            token_ppl = math.exp(-stats["logprob_sum"] / stats["num_tokens"])
+            print(f"Token perplexity: {token_ppl:.4f}")
 
     append_result_csv(e_config, str(result), mem_stats)
 

@@ -64,7 +64,38 @@ def _loglikelihood_tokens(self, requests, disable_tqdm=False, **kwargs):
 
 # Perplexity tasks
 def loglikelihood_rolling(self, requests, disable_tqdm=False):
-    pass
+    from lm_eval import utils as lm_utils
+
+    max_len = 2048
+
+    ppl_stats["logprob_sum"] = 0.0
+    ppl_stats["num_tokens"] = 0
+
+    loglikelihoods = []
+    for request in tqdm(requests, desc="Processing rolling loglikelihoods", disable=disable_tqdm):
+        (string,) = request.args
+
+        token_list = self.tok_encode(string)
+        rolling_windows = list(map(
+            lm_utils.make_disjoint_window,
+            lm_utils.get_rolling_token_windows(
+                token_list=token_list,
+                prefix_token=self.prefix_token_id,
+                max_seq_len=max_len,
+                context_len=1,
+            ),
+        ))
+
+        # _loglikelihood_tokens expects (_, prompt_tokens, target_tokens) tuples
+        windows = [(None,) + w for w in rolling_windows]
+        window_results = _loglikelihood_tokens(self, windows, disable_tqdm=True)
+        doc_logprob = sum(lp for lp, _ in window_results)
+
+        loglikelihoods.append(doc_logprob)
+        ppl_stats["logprob_sum"] += doc_logprob
+        ppl_stats["num_tokens"] += len(token_list)
+
+    return loglikelihoods
 
 
 LmEvalWrapper._loglikelihood_tokens = _loglikelihood_tokens
@@ -73,6 +104,13 @@ LmEvalWrapper.generate_until = generate_until
 
 config = {
     "print_outputs": 0,
+}
+
+# Accumulated during loglikelihood_rolling for token-level perplexity.
+# Reset at the start of each rolling evaluation so re-runs are clean.
+ppl_stats = {
+    "logprob_sum": 0.0,
+    "num_tokens": 0,
 }
 
 
