@@ -9,6 +9,6 @@
     "task": "wikitext",
     "few_shots": 0,
     "scores_filter": "word_perplexity,none",
-    "engine_dir": "qwen2/W16A16_INT8KV_LOGITS",
+    "engine_dir": "qwen2/W16A16_LOGITS_BF",
     "print_outputs": 0
 }

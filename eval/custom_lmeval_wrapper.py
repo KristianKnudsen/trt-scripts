@@ -176,6 +176,7 @@ def main():
     if e_config.task in _PERPLEXITY_TASKS:
         result /= 100
         stats = lmeval_patches.ppl_stats
+        # It also doesnt do Token perplexity by default so we extract it from the patched thingi.
         if stats["num_tokens"] > 0:
             import math
             token_ppl = math.exp(-stats["logprob_sum"] / stats["num_tokens"])

@@ -4,11 +4,11 @@
     "max_tokens": 1,
     "temperature": 0.0,
     "return_context_logits": true,
-    "seed": 1337,
+    "seed": 0,
     "num_samples": null,
-    "task": "wikitext",
-    "few_shots": 0,
-    "scores_filter": "word_perplexity,none",
-    "engine_dir": "qwen2/W16A16_INT8KV_LOGITS",
+    "task": "mmlu",
+    "few_shots": 5,
+    "scores_filter": "acc,none",
+    "engine_dir": "qwen2/W4A16_INT8KV_LOGITS",
     "print_outputs": 0
 }
