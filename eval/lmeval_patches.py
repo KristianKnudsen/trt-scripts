@@ -6,6 +6,7 @@ from tensorrt_llm.sampling_params import SamplingParams
 
 
 def generate_until(self, requests, disable_tqdm: bool = False):
+    config["n_samples_actual"] = len(requests)
     profiler.start("trtllm exec")
     results = []
     for request in tqdm(requests, desc="Submitting requests", disable=disable_tqdm):
@@ -35,6 +36,8 @@ def _loglikelihood_tokens(self, requests, disable_tqdm=False, **kwargs):
     Full MMLU task will crash on certain hardware (HPC will work, allocate a lot of ram). Divide the tasks as much as possible for stable evaluation. Making big requests with gather logits enabled
     seems to have some kind of memory accumulation in the engine.
     """
+    # Count unique prompts to deduplicate MC choices (e.g. 4-choice MMLU: len/4 = num docs)
+    config["n_samples_actual"] = len(set(tuple(r[1]) for r in requests))
     profiler.start("trtllm exec")
 
     sp = copy.deepcopy(self.sampling_params) if self.sampling_params else SamplingParams()
@@ -71,6 +74,7 @@ def loglikelihood_rolling(self, requests, disable_tqdm=False):
     ppl_stats["logprob_sum"] = 0.0
     ppl_stats["num_tokens"] = 0
 
+    config["n_samples_actual"] = len(requests)  # overwrite: 1 request = 1 doc for perplexity
     loglikelihoods = []
     for request in tqdm(requests, desc="Processing rolling loglikelihoods", disable=disable_tqdm):
         (string,) = request.args
@@ -104,6 +108,7 @@ LmEvalWrapper.generate_until = generate_until
 
 config = {
     "print_outputs": 0,
+    "n_samples_actual": None,
 }
 
 # Accumulated during loglikelihood_rolling for token-level perplexity.

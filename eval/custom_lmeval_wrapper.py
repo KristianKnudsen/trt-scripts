@@ -191,21 +191,30 @@ def main():
 _MEM_STAT_KEYS = ["engine_disk_mib", "exec_context_mib", "kv_cache_alloc_mib",
                   "runtime_buffers_mib", "decoder_mib"]
 
+_PARAM_KEYS = [f.name for f in fields(EvalConfig) if f.name != "task"]
+
 
 def append_result_csv(e_config: EvalConfig, result: str, mem_stats: dict = None, csv_path="results.csv"):
     file_exists = os.path.exists(csv_path)
     mem_stats = mem_stats or {}
 
+    try:
+        result_rounded = round(float(result), 2)
+    except (ValueError, TypeError):
+        result_rounded = result
+
     with open(csv_path, "a", newline="") as f:
         writer = csv.writer(f)
 
         if not file_exists:
-            writer.writerow(["model", "task", "result", "config params"] + _MEM_STAT_KEYS)
+            writer.writerow(["model", "task", "result", "n_samples_actual"] + _PARAM_KEYS + _MEM_STAT_KEYS)
 
-        writer.writerow([e_config.engine_dir.name,
-                         e_config.task,
-                         result,
-                         str(e_config)] + [mem_stats.get(k, "") for k in _MEM_STAT_KEYS])
+        writer.writerow(
+            [e_config.engine_dir.name, e_config.task, result_rounded,
+             lmeval_patches.config.get("n_samples_actual", "")]
+            + [getattr(e_config, k, "") for k in _PARAM_KEYS]
+            + [mem_stats.get(k, "") for k in _MEM_STAT_KEYS]
+        )
 
 if __name__ == "__main__":
     main()

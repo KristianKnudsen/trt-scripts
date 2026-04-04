@@ -2,7 +2,7 @@
     "engine_out_dir": "qwen2/W8A8_SQ_LOGITS_FP16",
     "checkpoint_out_dir": "qwen2/W8A8_SQ_FP16",
     "model_type": "qwen",
-    "dtype": "float16",
+    "dtype": "bfloat16",
     "quant_mode": "W8A8_SQ",
     "kv_cache_dtype": null,
     "max_batch_size": 8,
