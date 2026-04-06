@@ -5,7 +5,7 @@ set -euo pipefail
 MODEL_DIR="./checkpoints/mistral/w4a16-awq"
 #MODEL_DIR="./checkpoints/qwen2/int4-awq"   # Converted checkpoint
 OUT_DIR="./trt_engines/mistral/w4a16-awq"
-#OUT_DIR="./trt_engines/qwen2/w4a16-big-test"         # Output engine directory
+#OUT_DIR="./trt_engines/Qwen25_3B/w4a16-big-test"         # Output engine directory
 
 # ----- Sequence length parameters -----
 # Dataset: input/output = 2048 ± 256 -> safe upper bound ≈ 6144 tokens total

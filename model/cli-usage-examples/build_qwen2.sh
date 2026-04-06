@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ----- Paths -----
 MODEL_DIR="./checkpoints/qwen2_fp16"                 # Your converted TRT-LLM checkpoint
-OUT_DIR="./trt_engines/qwen2/fp16_batch16"           # Where to put the built engines
+OUT_DIR="./trt_engines/Qwen25_3B/fp16_batch16"           # Where to put the built engines
 
 # ----- Sequence length parameters -----
 MAX_INPUT_LEN=3072       # Max input tokens

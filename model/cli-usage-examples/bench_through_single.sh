@@ -15,7 +15,7 @@ set -euo pipefail
 #MODEL_HF_NAME="Qwen/Qwen3-8B"
 #MODEL_PATH="/root/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218"
 
-ENGINE_DIR="./trt_engines/qwen2/w4a16"
+ENGINE_DIR="./trt_engines/Qwen25_3B/w4a16"
 MODEL_HF_NAME="Qwen/Qwen2.5-3B"
 MODEL_PATH="/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b/"
 

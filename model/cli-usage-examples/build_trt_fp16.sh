@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ----- Paths -----
 MODEL_DIR="./checkpoints/qwen2_fp16"   # Converted checkpoint
-OUT_DIR="./trt_engines/qwen2/fp16_batch16"         # Output engine directory
+OUT_DIR="./trt_engines/Qwen25_3B/fp16_batch16"         # Output engine directory
 
 # ----- Sequence length parameters -----
 # Dataset: input/output = 2048 ± 256 -> safe upper bound ≈ 6144 tokens total

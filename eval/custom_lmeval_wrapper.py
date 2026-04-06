@@ -131,6 +131,15 @@ def main():
     args = parser.parse_args()
 
     e_config = load_config(args.config, args.base, args.model_dir)
+
+    parts = e_config.model_dir.parts
+    model_name = next(
+        (p.replace("models--", "").replace("--", "/") for p in parts if p.startswith("models--")),
+        e_config.model_dir.name,
+    )
+    print(f"Model: {model_name}")
+    print(f"Quant: {e_config.engine_dir.name}")
+
     _prepare_task_env(e_config.task, args.base)
 
     eval = LmEvalEvaluator(

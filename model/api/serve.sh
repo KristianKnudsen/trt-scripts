@@ -6,4 +6,4 @@ trtllm-serve serve \
  --log_level info \
  --max_batch_size 32 \
  --max_num_tokens 8192 \
- ../trt_engines/qwen2/W16A16
+ ../trt_engines/Qwen25_3B/W16A16

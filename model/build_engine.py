@@ -126,7 +126,7 @@ def load_config(config_path: str, base: str, model_dir: str) -> BuildConfig:
 
     cfg = BuildConfig(**kwargs)
 
-    cfg.model_dir = data["model_dir"] if "model_dir" in data else model_dir
+    cfg.model_dir = Path(data["model_dir"] if "model_dir" in data else model_dir)
 
     if "engine_out_dir" in data:
         cfg.engine_out_dir = _resolve_path(data["engine_out_dir"], engine_root)
@@ -298,7 +298,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path to JSON build config file")
     parser.add_argument("--base", type=str, required=True, help="Path to trt-scripts root directory")
-    parser.add_argument("--model-dir", type=str, required=True, help="Path to HuggingFace model snapshot")
+    parser.add_argument("--model-dir", type=str, required=False, default="", help="Path to HuggingFace model snapshot")
     args = parser.parse_args()
 
     cfg = load_config(args.config, args.base, args.model_dir)
