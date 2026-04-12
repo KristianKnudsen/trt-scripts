@@ -11,4 +11,5 @@ hpc/logs/*
 **/results.csv
 **/results_filtered.csv
 .hf_token
+.codex
 __pycache__/
