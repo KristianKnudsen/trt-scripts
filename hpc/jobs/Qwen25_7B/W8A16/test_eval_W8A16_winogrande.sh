@@ -16,6 +16,7 @@ MODEL_DIR="/cluster/home/krisskn/master-thesis/hf-cache/models/Qwen2.5-7B"
 srun /usr/bin/apptainer exec --nv --writable-tmpfs \
   $BASE/hpc/trtllm-tools.sif \
   python $BASE/eval/custom_lmeval_wrapper.py \
-    --config $BASE/eval/configs/Qwen25_7B/W8A16/eval_winogrande.json \
+    --config $BASE/eval/configs/tasks/eval_winogrande.json \
     --base $BASE \
+    --engine-dir Qwen25_7B/W8A16_LOGITS \
     --model-dir $MODEL_DIR

@@ -76,10 +76,10 @@ For running one benchmark at a time, use [`hpc/jobs/eval_job_template.sh`](jobs/
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in the placeholders at the top of the script:
    - `<BASE_PATH>` — path to the `trt-scripts` root
-   - `<MODEL>` — model subfolder name used in config paths (e.g. `qwen`)
+   - `<MODEL>` — model subfolder name used under `model/trt_engines/` (e.g. `Qwen25_3B`)
    - `<MODEL_DIR>` — HuggingFace model directory name (e.g. `Qwen2.5-3B`)
    - `<QUANT>` — quantization name (e.g. `W16A16`)
-   - `<TASK>` — benchmark name matching a config file under `eval/configs/<model>/<QUANT>/` (e.g. `mmlu`)
+   - `<TASK>` — benchmark name matching a config file under `eval/configs/tasks/` (e.g. `mmlu`)
 3. Submit with:
 
 ```bash
@@ -93,7 +93,7 @@ To run all benchmarks for a given quant in parallel, use [`hpc/jobs/eval_array_j
 1. Copy the template into `hpc/jobs/<model>/`
 2. Fill in `<BASE_PATH>`, `<MODEL>`, `<MODEL_DIR>`, `<QUANT>` at the top
 3. The `CONFIGS` array lists all benchmark configs to run — add or remove entries as needed
-4. Make sure the corresponding config files exist under `eval/configs/<model>/<QUANT>/`
+4. Make sure the corresponding config files exist under `eval/configs/tasks/`
 5. Submit with:
 
 ```bash

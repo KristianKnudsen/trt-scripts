@@ -31,7 +31,7 @@ Refer to the [model/](model/) directory for documentation on build configs and q
 Contains the evaluation pipeline for running benchmarks against built engines using `lm-eval`.
 
 - [eval/custom_lmeval_wrapper.py](eval/custom_lmeval_wrapper.py) — wrapper script that runs `lm-eval` tasks against a TensorRT-LLM engine
-- [eval/configs/](eval/configs/) — benchmark configs organized by model and quantization variant
+- [eval/configs/tasks/](eval/configs/tasks/) — benchmark configs shared across models and quantization variants
 
 Refer to the [eval/](eval/) directory for documentation on supported tasks and config structure.
 

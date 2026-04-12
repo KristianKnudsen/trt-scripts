@@ -18,7 +18,8 @@ CONFIGS=(
 for CONFIG in "${CONFIGS[@]}"; do
   echo "Running $CONFIG..."
   python $BASE/eval/custom_lmeval_wrapper.py \
-    --config $BASE/eval/configs/Qwen25_3B/$QUANT/$CONFIG \
+    --config $BASE/eval/configs/tasks/$CONFIG \
     --base $BASE \
+    --engine-dir Qwen25_3B/${QUANT}_LOGITS \
     --model-dir $MODEL_DIR
 done

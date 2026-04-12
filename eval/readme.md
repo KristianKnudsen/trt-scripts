@@ -28,6 +28,7 @@ Usage (typically invoked via an HPC or Docker job script):
 python eval/custom_lmeval_wrapper.py \
   --config path/to/eval_config.json \
   --base path/to/trt-scripts \
+  --engine-dir Qwen25_3B/W16A16_LOGITS \
   --model-dir path/to/hf-model
 ```
 
@@ -64,7 +65,8 @@ python eval/custom_lmeval_wrapper.py \
 
 | Parameter | Type | Description |
 |---|---|---|
-| `engine_dir` | string | Path to the compiled TRT engine, relative to `model/trt_engines/` |
+| `--engine-dir` | string | Path to the compiled TRT engine, absolute or relative to `model/trt_engines/`. Prefer passing this as a CLI argument so task configs stay shared |
+| `engine_dir` | string | Deprecated config field for the compiled TRT engine. Still supported as a fallback |
 | `model_dir` | string \| null | Overrides the `--model-dir` CLI argument if set |
 
 ---
@@ -104,13 +106,20 @@ Results are appended to `results.csv` in the working directory after each run. C
 
 ## `configs/`
 
-Eval configs organized by model and quantization variant:
+Eval configs are shared across models and quantization variants. The engine is selected at runtime with `--engine-dir`:
 
 ```
 configs/
-  <model>/
-    <QUANT>/
-      eval_<task>.json
+  tasks/
+    eval_<task>.json
 ```
 
-For example: `configs/qwen/W8A8_SQ/eval_mmlu.json`
+For example:
+
+```bash
+python eval/custom_lmeval_wrapper.py \
+  --config eval/configs/tasks/eval_mmlu.json \
+  --base /path/to/trt-scripts \
+  --model-dir /path/to/hf-model \
+  --engine-dir Qwen25_3B/W8A8_SQ_LOGITS
+```

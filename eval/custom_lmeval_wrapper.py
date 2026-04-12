@@ -41,11 +41,20 @@ class EvalConfig:
     model_dir = Path("/root/.cache/huggingface/hub/models--Qwen--Qwen2.5-3B/snapshots/3aab1f1954e9cc14eb9509a215f9e5ca08227a9b")
     engine_dir = Path("/workspace/code/trt_engines/qwen2/W16A16_LOGITS")
 
-def load_config(config_path: str, base: str, model_dir: str) -> EvalConfig:
+def _resolve_engine_dir(engine_dir: str, base: str) -> Path:
+    engine_root = Path(base) / "model" / "trt_engines"
+    p = Path(engine_dir).expanduser()
+    return p if p.is_absolute() else engine_root / p
+
+
+def load_config(
+    config_path: str,
+    base: str,
+    model_dir: str,
+    engine_dir_override: Optional[str] = None,
+) -> EvalConfig:
     with open(config_path) as f:
         data = json.load(f)
-
-    engine_root = Path(base) / "model" / "trt_engines"
 
     field_names = {f.name for f in fields(EvalConfig)}
     unknown = set(data) - field_names - {"model_dir", "engine_dir"}
@@ -57,9 +66,11 @@ def load_config(config_path: str, base: str, model_dir: str) -> EvalConfig:
 
     cfg.model_dir = Path(data["model_dir"]) if "model_dir" in data else Path(model_dir)
 
-    if "engine_dir" in data:
-        p = Path(data["engine_dir"])
-        cfg.engine_dir = p if p.is_absolute() else engine_root / p
+    engine_dir = engine_dir_override or data.get("engine_dir")
+    if not engine_dir:
+        raise ValueError("Engine directory is required. Pass --engine-dir or set engine_dir in the config.")
+
+    cfg.engine_dir = _resolve_engine_dir(engine_dir, base)
 
     return cfg
 
@@ -128,9 +139,15 @@ def main():
     parser.add_argument("--config", type=str, required=True, help="Path to JSON eval config file")
     parser.add_argument("--base", type=str, required=True, help="Path to trt-scripts root directory")
     parser.add_argument("--model-dir", type=str, required=True, help="Path to HuggingFace model snapshot")
+    parser.add_argument(
+        "--engine-dir",
+        type=str,
+        default=None,
+        help="Path to TRT engine directory, absolute or relative to model/trt_engines",
+    )
     args = parser.parse_args()
 
-    e_config = load_config(args.config, args.base, args.model_dir)
+    e_config = load_config(args.config, args.base, args.model_dir, args.engine_dir)
 
     parts = e_config.model_dir.parts
     model_name = next(

@@ -31,6 +31,7 @@ CONFIG=${CONFIGS[$SLURM_ARRAY_TASK_ID]}
 srun /usr/bin/apptainer exec --nv --writable-tmpfs \
   $BASE/hpc/trtllm-tools.sif \
   python $BASE/eval/custom_lmeval_wrapper.py \
-    --config $BASE/eval/configs/Qwen25_14B/${QUANT}/$CONFIG \
+    --config $BASE/eval/configs/tasks/$CONFIG \
     --base $BASE \
+    --engine-dir Qwen25_14B/${QUANT}_LOGITS \
     --model-dir $MODEL_DIR

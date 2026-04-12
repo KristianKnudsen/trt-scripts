@@ -20,6 +20,7 @@ CONFIG="eval_${TASK}.json"
 srun /usr/bin/apptainer exec --nv --writable-tmpfs \
   $BASE/hpc/trtllm-tools.sif \
   python $BASE/eval/custom_lmeval_wrapper.py \
-    --config $BASE/eval/configs/$MODEL/$QUANT/$CONFIG \
+    --config $BASE/eval/configs/tasks/$CONFIG \
     --base $BASE \
+    --engine-dir "$MODEL/${QUANT}_LOGITS" \
     --model-dir $MODEL_DIR
