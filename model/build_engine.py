@@ -236,8 +236,8 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
             )
 
             ModelClass.quantize(
-                cfg.model_dir,
-                checkpoint_dir,
+                str(cfg.model_dir),
+                str(checkpoint_dir),
                 quant_config=quant_config,
                 calib_dataset=cfg.calib_source,
                 calib_batch_size=cfg.calib_batch_size,
@@ -251,7 +251,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
 
         MPI.COMM_WORLD.Barrier()
 
-        model = ModelClass.from_checkpoint(checkpoint_dir)
+        model = ModelClass.from_checkpoint(str(checkpoint_dir))
 
         if not cfg.checkpoint_out_dir and rank == 0:
             shutil.rmtree(checkpoint_dir)
@@ -264,7 +264,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
             print(f"[Rank {rank}] Loading directly from HF (Weight-Only)...")
 
         model = ModelClass.from_hugging_face(
-            cfg.model_dir,
+            str(cfg.model_dir),
             dtype=cfg.dtype,
             quant_config=quant_config,
             mapping=mapping
@@ -272,7 +272,7 @@ def convert_and_quantize(cfg: BuildConfig, rank: int, world_size: int):
 
         if cfg.checkpoint_out_dir and rank == 0:
             cfg.checkpoint_out_dir.mkdir(parents=True, exist_ok=True)
-            model.save_checkpoint(cfg.checkpoint_out_dir)
+            model.save_checkpoint(str(cfg.checkpoint_out_dir))
             print(f"[Rank 0] Checkpoint saved to {cfg.checkpoint_out_dir}")
 
         return model
@@ -311,7 +311,7 @@ def main():
     if cfg.checkpoint_in_dir:
         print(f"[Rank {rank}] Loading from checkpoint: {cfg.checkpoint_in_dir}")
         ModelClass = _get_model_class(cfg)
-        model = ModelClass.from_checkpoint(cfg.checkpoint_in_dir)
+        model = ModelClass.from_checkpoint(str(cfg.checkpoint_in_dir))
     else:
         model = convert_and_quantize(cfg, rank, world_size)
         print(f"[Rank {rank}] Convert and quantize complete.")
