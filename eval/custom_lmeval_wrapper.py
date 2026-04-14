@@ -26,6 +26,8 @@ class EvalConfig:
     max_tokens:int = 1,
 
     # Sampling Params
+    # Look at the SamplingParams class for future additions.
+    # Repitition pentalty might be useful
     temperature:float = 0.0,
     return_context_logits: bool = True,
     seed: int = 0

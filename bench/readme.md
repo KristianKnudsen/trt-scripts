@@ -1,0 +1,23 @@
+base config:
+{
+    "run_name": "baseline",
+    "repeats": 1,
+    "num_requests": 15,
+    "warmup": 1,
+    "backend": "tensorrt",
+    "kv_cache_free_gpu_mem_fraction": 0.9,
+    "smi_logging": true,
+    "smi_interval_ms": 1000,
+    "sampler_options": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "repetition_penalty": 1.0
+    }
+}
+
+cli args:
+-- base dir
+-- engine dir
+-- tokenizer dir
+-- dataset
+-- config
