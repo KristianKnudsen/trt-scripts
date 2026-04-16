@@ -13,3 +13,6 @@ hpc/logs/*
 .hf_token
 .codex
 __pycache__/
+model/tokenizers/**
+!model/tokenizers/.gitkeep
+bench/datasets/*.txt
