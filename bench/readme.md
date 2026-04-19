@@ -200,6 +200,59 @@ bench/results/raw
 
 When `keep_raw` is `false`, the raw folder is deleted after the CSV row is written. Set `keep_raw` to `true` if you want to keep `report.json`, `iteration.log`, `smi.csv`, and the temporary workspace.
 
+## Files To Edit
+
+For different hardware, models, or benchmark shapes, these are the usual files to change.
+
+Dataset generation:
+
+```bash
+bench/datasets/GenerateQwenData.sh
+bench/datasets/GenerateMistralData.sh
+```
+
+Edit these when you need different input or output lengths, standard deviations, request counts, tokenizer paths, or dataset names. The workload values should fit the engine limits for the hardware you are testing.
+
+Benchmark config:
+
+```bash
+bench/configs/base_config.json
+```
+
+Edit this for request count, warmup, KV cache free memory fraction, concurrency, SMI logging, sampler options, or whether raw files are kept.
+
+Benchmark sweep jobs:
+
+```bash
+docker/jobs/Qwen25_3B/bench_all_qwen25_3b.sh
+```
+
+Edit this when the model name, tokenizer name, quant list, dataset list, config name, or repo base path changes.
+
+Engine folders:
+
+```bash
+model/trt_engines/<model>/<quant>
+```
+
+The `--engine` argument points under this folder. The sweep scripts assume these engine folders already exist.
+
+Tokenizer folders:
+
+```bash
+model/tokenizers/<tokenizer>
+```
+
+The `--tokenizer` argument points under this folder. The benchmark runner uses this as `--model_path` for TensorRT-LLM bench.
+
+Benchmark runner:
+
+```bash
+bench/bench_latency.py
+```
+
+Only edit this if you need to change the CSV columns, result extraction, SMI parsing, path rules, or TensorRT-LLM bench patching behavior.
+
 ## Notes
 
 The runner patches TensorRT-LLM bench in-process so `--model_path` can point at the tokenizer folder instead of a full Hugging Face model folder.
