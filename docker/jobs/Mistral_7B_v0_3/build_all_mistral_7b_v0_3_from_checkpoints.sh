@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE="${BASE:-/workspace/trt-scripts}"
-MODEL="Qwen25_3B"
+MODEL="Mistral_7B_v0_3"
 CONFIG_DIR="$BASE/model/configs/docker/$MODEL"
 CHECKPOINT_ROOT="$BASE/model/trt_checkpoints/$MODEL"
 

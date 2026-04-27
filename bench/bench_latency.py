@@ -101,6 +101,7 @@ def patch_trtllm_bench(config: BenchConfig) -> None:
             return None
         return original_model_type.fget(self)
 
+    # This patch removes the need for a sampler yaml file, allowing us to just send a di
     def update_sampler_args(sampler_args, sampler_options_path):
         if sampler_options_path is not None:
             return original_sampler_update(sampler_args, sampler_options_path)

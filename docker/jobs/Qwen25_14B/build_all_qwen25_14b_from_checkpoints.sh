@@ -2,13 +2,13 @@
 set -euo pipefail
 
 BASE="${BASE:-/workspace/trt-scripts}"
-MODEL="Qwen25_3B"
+MODEL="Qwen25_14B"
 CONFIG_DIR="$BASE/model/configs/docker/$MODEL"
 CHECKPOINT_ROOT="$BASE/model/trt_checkpoints/$MODEL"
 
 VARIANTS=(
-  "W16A16"
-  "W16A16_INT8KV"
+#  "W16A16"
+#  "W16A16_INT8KV"
   "W8A16"
   "W8A16_INT8KV"
   "W8A8_SQ"

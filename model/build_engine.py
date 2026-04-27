@@ -21,6 +21,8 @@ from datasets import load_dataset
 import os
 
 
+# Monkey patched calibration dataset loader. The source code does not allow for custom datasets, even though their code supports it.
+# It's litterally just 2 lines of code they would have to change, but the argpassing would be annoying ig.
 def _get_calib_dataloader(dataset_name_or_dir="cnn_dailymail",
                           tokenizer=None,
                           batch_size=1,
@@ -67,6 +69,7 @@ SUPPORTED_MODELS = {"mistral", "llama", "qwen"}
 class BuildConfig:
     # Model
     model_type: str = "qwen"
+    # Usually choose between float16 or bfloat 16. Maybe add a check? (TODO)
     dtype: str = "float16"
 
     # Quantization
@@ -90,7 +93,7 @@ class BuildConfig:
     calib_max_seq_length: int = 6144
     random_seed: int = 0
 
-    # Paths (unannotated to match EvalConfig pattern)
+    # Paths, unannotated to not clutter the str method.
     model_dir = Path("")
     engine_out_dir: Optional[Path] = None
     checkpoint_out_dir: Optional[Path] = None
@@ -119,7 +122,7 @@ def load_config(config_path: str, base: str, model_dir: str) -> BuildConfig:
 
     kwargs = {k: v for k, v in data.items() if k in field_names}
 
-    # Normalize kv_cache_dtype
+    # Normalize kv_cache_dtype from config variations
     if "kv_cache_dtype" in kwargs and isinstance(kwargs["kv_cache_dtype"], str):
         if kwargs["kv_cache_dtype"].lower() in ("none", "null"):
             kwargs["kv_cache_dtype"] = None
